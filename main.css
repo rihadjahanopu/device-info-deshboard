@@ -780,3 +780,14 @@ tr:hover {
 		}
 	}
 }
+
+.open-source {
+	color: #ff4757;
+}
+
+.git {
+	color: #ff9800;
+	text-decoration: none;
+	cursor: pointer;
+	margin-top: 10px;
+}
