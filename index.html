@@ -1,0 +1,2002 @@
+<!doctype html>
+<html lang="bn">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>🖥️ Ultimate Device Info Dashboard</title>
+		<link
+			rel="stylesheet"
+			href="./main.css" />
+		<!-- FIX 2: removed <base target="_blank"> which broke internal tab clicks -->
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>🖥️ Ultimate Device Info Dashboard</h1>
+				<p class="subtitle">
+					Complete System Analysis &amp; Battery Health Monitor <br />
+					<span class="develop"
+						>Developed by
+						<a href="https://github.com/rihadjahanopu/"
+							>Rihad Jahan Opu</a
+						></span
+					>
+				</p>
+				<div
+					class="timestamp"
+					id="timestamp">
+					Initializing...
+				</div>
+			</header>
+
+			<div class="tabs">
+				<!-- FIX 3: use <button> elements; pass tab name directly, no implicit global `event` -->
+				<button
+					class="tab active"
+					onclick="showTab(this, 'overview')">
+					📊 Overview
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'hardware')">
+					⚙️ Hardware
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'battery')">
+					🔋 Battery
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'network')">
+					🌐 Network
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'advanced')">
+					🔧 Advanced
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'history')">
+					📜 History
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'healthcalc')">
+					🧮 Health Calc
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'benchmark')">
+					🏆 Benchmark
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'livechart')">
+					📈 Live Chart
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'fingerprint')">
+					🔐 Fingerprint
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'sensors')">
+					🧲 Sensors
+				</button>
+			</div>
+
+			<!-- OVERVIEW TAB -->
+			<div
+				id="overview"
+				class="tab-content active">
+				<div class="grid">
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">💻</span
+							><span class="card-title">System Overview</span>
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								id="os-name">
+								--
+							</div>
+							<div class="big-label">Operating System</div>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🌐 Browser</span
+							><span
+								class="info-value"
+								id="browser-name"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📱 Platform</span
+							><span
+								class="info-value"
+								id="platform"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔌 Online Status</span
+							><span
+								class="info-value"
+								id="online-status"
+								>--</span
+							>
+						</div>
+					</div>
+
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🔋</span
+							><span class="card-title">Battery Status</span>
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								id="battery-level-main">
+								--%
+							</div>
+							<div class="big-label">Current Charge</div>
+						</div>
+						<div class="progress-bar">
+							<div
+								class="progress-fill good"
+								id="battery-bar-main"
+								style="width: 0%">
+								--%
+							</div>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⚡ Status</span
+							><span
+								class="info-value"
+								id="charging-status-main"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⏱️ Time Remaining</span
+							><span
+								class="info-value"
+								id="time-remaining-main"
+								>--</span
+							>
+						</div>
+					</div>
+
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🖥️</span
+							><span class="card-title">Display</span>
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								id="resolution-main">
+								--
+							</div>
+							<div class="big-label">Resolution</div>
+						</div>
+						<div class="stats-grid">
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="screen-width">
+									--
+								</div>
+								<div class="stat-label">Width</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="screen-height">
+									--
+								</div>
+								<div class="stat-label">Height</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">⚡</span
+							><span class="card-title">Hardware</span>
+						</div>
+						<div class="stats-grid">
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="cpu-cores-main">
+									--
+								</div>
+								<div class="stat-label">CPU Cores</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="ram-main">
+									--
+								</div>
+								<div class="stat-label">RAM (GB)</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="touch-main">
+									--
+								</div>
+								<div class="stat-label">Touch</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="pixel-ratio-main">
+									--
+								</div>
+								<div class="stat-label">Pixel Ratio</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- HARDWARE TAB -->
+			<div
+				id="hardware"
+				class="tab-content">
+				<div class="grid">
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">⚙️</span
+							><span class="card-title">Processor &amp; Memory</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🧠 CPU Cores</span
+							><span
+								class="info-value"
+								id="cpu-cores"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">💾 RAM (GB)</span
+							><span
+								class="info-value"
+								id="ram"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📊 Device Memory</span
+							><span
+								class="info-value"
+								id="device-memory"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">👆 Max Touch Points</span
+							><span
+								class="info-value"
+								id="touch-points"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🖥️</span
+							><span class="card-title">Screen Details</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📐 Resolution</span
+							><span
+								class="info-value"
+								id="resolution"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📏 Available</span
+							><span
+								class="info-value"
+								id="avail-resolution"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🎨 Color Depth</span
+							><span
+								class="info-value"
+								id="color-depth"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔍 Pixel Ratio</span
+							><span
+								class="info-value"
+								id="pixel-ratio"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔄 Orientation</span
+							><span
+								class="info-value"
+								id="orientation"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">👆 Touch Support</span
+							><span
+								class="info-value"
+								id="touch-support"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">💾</span
+							><span class="card-title">Storage</span>
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								id="storage-used">
+								--
+							</div>
+							<div class="big-label">Used Storage</div>
+						</div>
+						<div class="progress-bar">
+							<div
+								class="progress-fill warning"
+								id="storage-bar"
+								style="width: 0%">
+								--
+							</div>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📦 Total Quota</span
+							><span
+								class="info-value"
+								id="storage-quota"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🍪 Cookies Enabled</span
+							><span
+								class="info-value"
+								id="cookies"
+								>--</span
+							>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- BATTERY TAB -->
+			<div
+				id="battery"
+				class="tab-content">
+				<div class="alert alert-warning">
+					⚠️ <strong>Disclaimer:</strong> Browser limitations prevent direct
+					battery health readings. Estimates are based on charging patterns and
+					historical data analysis.
+				</div>
+				<div class="grid">
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🔋</span
+							><span class="card-title">Current Status</span>
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								id="battery-level-detail">
+								--%
+							</div>
+							<div class="big-label">Battery Level</div>
+						</div>
+						<div class="progress-bar">
+							<div
+								class="progress-fill good"
+								id="battery-bar-detail"
+								style="width: 0%">
+								--%
+							</div>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⚡ Charging</span
+							><span
+								class="info-value"
+								id="charging-status-detail"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⏱️ Time to Full</span
+							><span
+								class="info-value"
+								id="time-to-full"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔋 Time Remaining</span
+							><span
+								class="info-value"
+								id="time-remaining-detail"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🏥</span
+							><span class="card-title">Health Estimate</span>
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								id="health-percentage">
+								--%
+							</div>
+							<div class="big-label">Estimated Health</div>
+						</div>
+						<div class="progress-bar">
+							<div
+								class="progress-fill good"
+								id="health-bar"
+								style="width: 0%">
+								--%
+							</div>
+						</div>
+						<div class="stats-grid">
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="cycle-count">
+									--
+								</div>
+								<div class="stat-label">Est. Cycles</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="wear-level">
+									--%
+								</div>
+								<div class="stat-label">Wear</div>
+							</div>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">📊</span
+							><span class="card-title">Performance</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⚡ Charge Rate</span
+							><span
+								class="info-value"
+								id="charge-rate"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔋 Discharge Rate</span
+							><span
+								class="info-value"
+								id="discharge-rate"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⏰ Avg Charge Time</span
+							><span
+								class="info-value"
+								id="avg-charge-time"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🕐 Avg Usage</span
+							><span
+								class="info-value"
+								id="avg-usage-time"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📈 Total Sessions</span
+							><span
+								class="info-value"
+								id="total-sessions"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card full-width">
+						<div class="card-header">
+							<span class="card-icon">💡</span
+							><span class="card-title">Battery Care Tips</span>
+						</div>
+						<div
+							id="battery-tips"
+							style="color: #aaa; line-height: 1.8">
+							<p>
+								🔋 <strong>Health Status:</strong>
+								<span
+									id="health-status-text"
+									style="color: var(--primary)"
+									>Analyzing...</span
+								>
+							</p>
+							<ul style="margin-top: 10px; margin-left: 20px">
+								<li>Keep battery between 20% and 80% for optimal longevity</li>
+								<li>Avoid extreme temperatures (below 0°C or above 35°C)</li>
+								<li>Calibrate monthly: full discharge then full charge</li>
+								<li>Remove charger when battery reaches 100%</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- NETWORK TAB -->
+			<div
+				id="network"
+				class="tab-content">
+				<div class="grid">
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🌐</span
+							><span class="card-title">Connection Info</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📶 Status</span
+							><span
+								class="info-value"
+								id="net-status"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔗 Type</span
+							><span
+								class="info-value"
+								id="conn-type"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⚡ Effective Type</span
+							><span
+								class="info-value"
+								id="effective-type"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⬇️ Downlink</span
+							><span
+								class="info-value"
+								id="downlink"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📡 RTT</span
+							><span
+								class="info-value"
+								id="rtt"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">💾 Save Data</span
+							><span
+								class="info-value"
+								id="save-data"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">📍</span
+							><span class="card-title">IP &amp; Location</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🌐 Public IP</span
+							><span
+								class="info-value"
+								id="public-ip"
+								>Loading...</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🏙️ City</span
+							><span
+								class="info-value"
+								id="city"
+								>Loading...</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🌍 Country</span
+							><span
+								class="info-value"
+								id="country"
+								>Loading...</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🏢 ISP</span
+							><span
+								class="info-value"
+								id="isp"
+								>Loading...</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🕐 Timezone</span
+							><span
+								class="info-value"
+								id="timezone"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🔒</span
+							><span class="card-title">Security</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔐 Protocol</span
+							><span
+								class="info-value"
+								id="protocol"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🍪 Cookies</span
+							><span
+								class="info-value"
+								id="cookies-enabled"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🚫 Do Not Track</span
+							><span
+								class="info-value"
+								id="dnt"
+								>--</span
+							>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ADVANCED TAB -->
+			<div
+				id="advanced"
+				class="tab-content">
+				<div class="grid">
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🔧</span
+							><span class="card-title">Browser Details</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🌐 User Agent</span
+							><span
+								class="info-value"
+								id="user-agent"
+								style="font-size: 0.8rem"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🏢 Vendor</span
+							><span
+								class="info-value"
+								id="vendor"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🌐 Language</span
+							><span
+								class="info-value"
+								id="language"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🌍 Languages</span
+							><span
+								class="info-value"
+								id="languages"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🤖 WebDriver</span
+							><span
+								class="info-value"
+								id="webdriver"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">📄</span
+							><span class="card-title">Features</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📑 PDF Viewer</span
+							><span
+								class="info-value"
+								id="pdf-viewer"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📋 Clipboard</span
+							><span
+								class="info-value"
+								id="clipboard"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔔 Notifications</span
+							><span
+								class="info-value"
+								id="notifications"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📍 Geolocation</span
+							><span
+								class="info-value"
+								id="geolocation"
+								>--</span
+							>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">⚡</span
+							><span class="card-title">Performance</span>
+						</div>
+						<!-- FIX 4: use PerformanceNavigationTiming (non-deprecated) -->
+						<div class="info-row">
+							<span class="info-label">⏱️ Load Time</span
+							><span
+								class="info-value"
+								id="load-time"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🧭 Navigation Type</span
+							><span
+								class="info-value"
+								id="nav-type"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔢 Redirects</span
+							><span
+								class="info-value"
+								id="redirects"
+								>--</span
+							>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- HEALTH CALCULATOR TAB -->
+			<div
+				id="healthcalc"
+				class="tab-content">
+				<div class="grid">
+					<!-- LEFT: Input panel -->
+					<div
+						class="card"
+						style="grid-column: span 1">
+						<div class="card-header">
+							<span class="card-icon">🧮</span
+							><span class="card-title">Battery Health Calculator</span>
+						</div>
+
+						<!-- Method selector -->
+						<p class="hc-section-title">Calculation Method</p>
+						<div class="hc-tabs">
+							<button
+								class="hc-tab active"
+								onclick="hcSwitchMethod(this, 'method-capacity')">
+								⚡ Capacity
+							</button>
+							<button
+								class="hc-tab"
+								onclick="hcSwitchMethod(this, 'method-cycle')">
+								🔄 Cycle Count
+							</button>
+							<button
+								class="hc-tab"
+								onclick="hcSwitchMethod(this, 'method-voltage')">
+								🔌 Voltage
+							</button>
+							<button
+								class="hc-tab"
+								onclick="hcSwitchMethod(this, 'method-time')">
+								⏱️ Discharge Time
+							</button>
+						</div>
+
+						<!-- METHOD 1: Capacity -->
+						<div
+							id="method-capacity"
+							class="hc-method active">
+							<div class="hc-formula-box">
+								Health % = (<strong>Current Capacity</strong> ÷
+								<strong>Design Capacity</strong>) × 100
+							</div>
+							<div class="hc-input-grid">
+								<div class="hc-field">
+									<label
+										>🔋 Design Capacity (mAh)
+										<span class="tip">– original from spec sheet</span></label
+									>
+									<input
+										type="number"
+										id="hc-design-cap"
+										placeholder="e.g. 5000"
+										min="100"
+										max="20000"
+										oninput="hcCalcCapacity()" />
+								</div>
+								<div class="hc-field">
+									<label>⚡ Current Full Charge Capacity (mAh)</label>
+									<input
+										type="number"
+										id="hc-current-cap"
+										placeholder="e.g. 4250"
+										min="50"
+										max="20000"
+										oninput="hcCalcCapacity()" />
+								</div>
+							</div>
+						</div>
+
+						<!-- METHOD 2: Cycle Count -->
+						<div
+							id="method-cycle"
+							class="hc-method">
+							<div class="hc-formula-box">
+								Health % = 100 − (<strong>Cycles</strong> ÷
+								<strong>Max Rated Cycles</strong>) ×
+								<strong>Degradation %</strong>
+							</div>
+							<div class="hc-input-grid">
+								<div class="hc-field">
+									<label>🔄 Current Cycle Count</label>
+									<input
+										type="number"
+										id="hc-cycles"
+										placeholder="e.g. 320"
+										min="0"
+										max="5000"
+										oninput="hcCalcCycle()" />
+								</div>
+								<div class="hc-field">
+									<label>📋 Max Rated Cycles</label>
+									<input
+										type="number"
+										id="hc-max-cycles"
+										placeholder="e.g. 500"
+										min="100"
+										max="5000"
+										oninput="hcCalcCycle()" />
+								</div>
+								<div class="hc-field">
+									<label>📉 Expected Degradation at Max Cycles (%)</label>
+									<input
+										type="number"
+										id="hc-degrad"
+										placeholder="e.g. 20"
+										min="1"
+										max="60"
+										value="20"
+										oninput="hcCalcCycle()" />
+								</div>
+								<div class="hc-field">
+									<label>🏷️ Battery Type</label>
+									<select
+										id="hc-batt-type"
+										onchange="hcAutoFillCycles()">
+										<option value="">— Select type —</option>
+										<option value="500:20">
+											Lithium-Ion (Li-Ion) · 500 cycles / 20%
+										</option>
+										<option value="300:20">
+											Laptop Li-Ion (older) · 300 cycles / 20%
+										</option>
+										<option value="1000:20">
+											LiPo (phones/modern) · 1000 cycles / 20%
+										</option>
+										<option value="2000:30">LiFePO4 · 2000 cycles / 30%</option>
+										<option value="200:30">NiMH · 200 cycles / 30%</option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<!-- METHOD 3: Voltage -->
+						<div
+							id="method-voltage"
+							class="hc-method">
+							<div class="hc-formula-box">
+								Health % = ((<strong>V_current</strong> −
+								<strong>V_min</strong>) ÷ (<strong>V_max</strong> −
+								<strong>V_min</strong>)) × 100
+							</div>
+							<div class="hc-input-grid">
+								<div class="hc-field">
+									<label>⚡ Current Voltage (V)</label>
+									<input
+										type="number"
+										id="hc-v-current"
+										placeholder="e.g. 3.85"
+										step="0.01"
+										min="0"
+										max="5"
+										oninput="hcCalcVoltage()" />
+								</div>
+								<div class="hc-field">
+									<label
+										>🔺 Max Voltage (V)
+										<span class="tip">– charged full</span></label
+									>
+									<input
+										type="number"
+										id="hc-v-max"
+										placeholder="e.g. 4.20"
+										step="0.01"
+										min="0"
+										max="5"
+										oninput="hcCalcVoltage()" />
+								</div>
+								<div class="hc-field">
+									<label
+										>🔻 Min Voltage (V)
+										<span class="tip">– cut-off</span></label
+									>
+									<input
+										type="number"
+										id="hc-v-min"
+										placeholder="e.g. 3.00"
+										step="0.01"
+										min="0"
+										max="5"
+										oninput="hcCalcVoltage()" />
+								</div>
+								<div class="hc-field">
+									<label>🏷️ Quick Preset</label>
+									<select
+										id="hc-volt-preset"
+										onchange="hcAutoFillVoltage()">
+										<option value="">— Select preset —</option>
+										<option value="4.20:3.00">
+											Li-Ion/LiPo (4.20V / 3.00V)
+										</option>
+										<option value="4.35:3.00">
+											High-voltage LiPo (4.35V / 3.00V)
+										</option>
+										<option value="3.65:2.50">LiFePO4 (3.65V / 2.50V)</option>
+										<option value="1.45:1.00">NiMH (1.45V / 1.00V)</option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<!-- METHOD 4: Discharge Time -->
+						<div
+							id="method-time"
+							class="hc-method">
+							<div class="hc-formula-box">
+								Health % = (<strong>Actual Runtime</strong> ÷
+								<strong>Rated Runtime</strong>) × 100
+							</div>
+							<div class="hc-input-grid">
+								<div class="hc-field">
+									<label>⏱️ Rated/Original Runtime (minutes)</label>
+									<input
+										type="number"
+										id="hc-rated-time"
+										placeholder="e.g. 480 (= 8h)"
+										min="1"
+										max="9999"
+										oninput="hcCalcTime()" />
+								</div>
+								<div class="hc-field">
+									<label>🕐 Actual Runtime Today (minutes)</label>
+									<input
+										type="number"
+										id="hc-actual-time"
+										placeholder="e.g. 360 (= 6h)"
+										min="1"
+										max="9999"
+										oninput="hcCalcTime()" />
+								</div>
+								<div class="hc-field">
+									<label
+										>🌡️ Temperature Correction
+										<span class="tip">– optional</span></label
+									>
+									<select
+										id="hc-temp-factor"
+										onchange="hcCalcTime()">
+										<option value="1.00">
+											No correction (room temp ~25°C)
+										</option>
+										<option value="0.95">Cold environment (~10°C) +5%</option>
+										<option value="0.90">Very cold (~0°C) +10%</option>
+										<option value="1.05">Hot environment (~40°C) −5%</option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<hr class="hc-divider" />
+
+						<!-- Extra context inputs (all methods) -->
+						<p class="hc-section-title">Extra Context (optional)</p>
+						<div class="hc-input-grid">
+							<div class="hc-field">
+								<label>📅 Battery Age (months)</label>
+								<input
+									type="number"
+									id="hc-age"
+									placeholder="e.g. 24"
+									min="0"
+									max="240"
+									oninput="hcRecalcActive()" />
+							</div>
+							<div class="hc-field">
+								<label>🌡️ Average Operating Temp (°C)</label>
+								<input
+									type="number"
+									id="hc-temp"
+									placeholder="e.g. 28"
+									min="-20"
+									max="80"
+									oninput="hcRecalcActive()" />
+							</div>
+						</div>
+
+						<div
+							class="btn-group"
+							style="margin-top: 16px">
+							<button
+								class="btn"
+								onclick="hcRecalcActive()">
+								⚡ Calculate
+							</button>
+							<button
+								class="btn btn-secondary"
+								onclick="hcReset()">
+								🗑️ Reset
+							</button>
+							<button
+								class="btn btn-secondary"
+								onclick="hcAutoFillFromLive()">
+								📡 Auto-fill from Live Data
+							</button>
+						</div>
+					</div>
+
+					<!-- RIGHT: Result panel -->
+					<div
+						class="card"
+						style="grid-column: span 1">
+						<div class="card-header">
+							<span class="card-icon">📊</span
+							><span class="card-title">Result &amp; Analysis</span>
+						</div>
+
+						<div
+							class="hc-result-panel"
+							id="hc-result-panel">
+							<div class="hc-result-label">Estimated Battery Health</div>
+							<div
+								class="hc-result-value"
+								id="hc-result-pct">
+								--%
+							</div>
+							<div
+								class="hc-result-grade"
+								id="hc-result-grade"
+								style="color: #555">
+								Enter values to calculate
+							</div>
+							<div class="hc-meter">
+								<div
+									class="hc-meter-fill"
+									id="hc-meter-fill"
+									style="width: 0%; background: var(--primary)"></div>
+							</div>
+							<div class="hc-scale">
+								<span>0%</span><span>25%</span><span>50%</span><span>75%</span
+								><span>100%</span>
+							</div>
+						</div>
+
+						<div
+							class="hc-breakdown"
+							id="hc-breakdown"
+							style="display: none">
+							<div class="hc-breakdown-item">
+								<div
+									class="val"
+									id="hcb-raw">
+									--%
+								</div>
+								<div class="lbl">Raw Score</div>
+							</div>
+							<div class="hc-breakdown-item">
+								<div
+									class="val"
+									id="hcb-age">
+									0pt
+								</div>
+								<div class="lbl">Age Penalty</div>
+							</div>
+							<div class="hc-breakdown-item">
+								<div
+									class="val"
+									id="hcb-temp">
+									0pt
+								</div>
+								<div class="lbl">Temp Penalty</div>
+							</div>
+							<div class="hc-breakdown-item">
+								<div
+									class="val"
+									id="hcb-final">
+									--%
+								</div>
+								<div class="lbl">Final Score</div>
+							</div>
+						</div>
+
+						<div
+							id="hc-advice"
+							class="hc-advice good"
+							style="display: none"></div>
+
+						<hr class="hc-divider" />
+
+						<!-- Reference table -->
+						<p class="hc-section-title">Health Grade Reference</p>
+						<table class="hc-compare-table">
+							<thead>
+								<tr>
+									<th>Health %</th>
+									<th>Grade</th>
+									<th>Meaning</th>
+									<th>Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>90 – 100%</td>
+									<td><span class="badge-health badge-ex">Excellent</span></td>
+									<td>Like new, full capacity</td>
+									<td>Continue normal use</td>
+								</tr>
+								<tr>
+									<td>75 – 89%</td>
+									<td><span class="badge-health badge-gd">Good</span></td>
+									<td>Minor wear, reliable</td>
+									<td>No action needed</td>
+								</tr>
+								<tr>
+									<td>50 – 74%</td>
+									<td><span class="badge-health badge-fr">Fair</span></td>
+									<td>Noticeable degradation</td>
+									<td>Monitor closely</td>
+								</tr>
+								<tr>
+									<td>&lt; 50%</td>
+									<td><span class="badge-health badge-pr">Poor</span></td>
+									<td>Significant capacity loss</td>
+									<td>Consider replacement</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<hr class="hc-divider" />
+
+						<!-- Formula reference -->
+						<p class="hc-section-title">All Formulas</p>
+						<div
+							class="hc-formula-box"
+							style="font-size: 0.82rem">
+							<div>
+								📐 <strong>Capacity:</strong> H = (C_now ÷ C_design) × 100
+							</div>
+							<div>🔄 <strong>Cycle:</strong> H = 100 − (n ÷ N) × D</div>
+							<div>
+								🔌 <strong>Voltage:</strong> H = ((V − V_min) ÷ (V_max − V_min))
+								× 100
+							</div>
+							<div>
+								⏱️ <strong>Time:</strong> H = (T_actual × T_factor ÷ T_rated) ×
+								100
+							</div>
+							<div style="margin-top: 8px; color: #666">
+								Penalties: age &gt;24mo → −0.3%/mo · temp &gt;30°C → −0.2%/°C
+								above 30
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- HISTORY TAB -->
+			<div
+				id="history"
+				class="tab-content">
+				<div class="card">
+					<div class="card-header">
+						<span class="card-icon">📜</span
+						><span class="card-title">Battery Session History</span>
+					</div>
+					<div class="table-container">
+						<table>
+							<thead>
+								<tr>
+									<th>Date &amp; Time</th>
+									<th>Level Change</th>
+									<th>Type</th>
+									<th>Duration</th>
+									<th>Rate</th>
+								</tr>
+							</thead>
+							<tbody id="history-body">
+								<tr>
+									<td
+										colspan="5"
+										style="text-align: center; color: #888">
+										No sessions recorded yet. Use your laptop to collect data.
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<div class="btn-group">
+						<button
+							class="btn"
+							onclick="refreshAll()">
+							🔄 Refresh All
+						</button>
+						<button
+							class="btn btn-secondary"
+							onclick="exportData()">
+							📥 Export JSON
+						</button>
+						<button
+							class="btn btn-danger"
+							onclick="clearAllData()">
+							🗑️ Clear All Data
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- ===== BENCHMARK TAB ===== -->
+			<div
+				id="benchmark"
+				class="tab-content">
+				<div class="grid">
+					<div class="card full-width">
+						<div class="card-header">
+							<span class="card-icon">🏆</span
+							><span class="card-title"
+								>CPU &amp; JavaScript Benchmark Suite</span
+							>
+						</div>
+						<div
+							class="alert alert-info"
+							style="margin-bottom: 18px">
+							⚡ Tests run entirely in your browser. Higher score = faster
+							device. Avoid running while charging to see pure performance.
+						</div>
+						<div
+							style="
+								display: grid;
+								grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+								gap: 14px;
+								margin-bottom: 22px;
+							"
+							id="bm-score-grid">
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="bm-total">
+									--
+								</div>
+								<div class="stat-label">Total Score</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="bm-cpu">
+									--
+								</div>
+								<div class="stat-label">CPU Integer</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="bm-float">
+									--
+								</div>
+								<div class="stat-label">CPU Float</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="bm-mem">
+									--
+								</div>
+								<div class="stat-label">Memory</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="bm-dom">
+									--
+								</div>
+								<div class="stat-label">DOM Speed</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="bm-crypto">
+									--
+								</div>
+								<div class="stat-label">Crypto</div>
+							</div>
+						</div>
+						<div
+							class="progress-bar"
+							style="margin-bottom: 8px">
+							<div
+								class="progress-fill good"
+								id="bm-progress"
+								style="width: 0%">
+								0%
+							</div>
+						</div>
+						<div
+							id="bm-status"
+							style="
+								color: #888;
+								font-size: 0.9rem;
+								text-align: center;
+								margin-bottom: 18px;
+							">
+							Press Start to begin benchmark
+						</div>
+						<div class="btn-group">
+							<button
+								class="btn"
+								id="bm-start-btn"
+								onclick="bmStart()">
+								▶ Start Benchmark
+							</button>
+							<button
+								class="btn btn-secondary"
+								onclick="bmReset()">
+								↺ Reset
+							</button>
+						</div>
+						<hr class="hc-divider" />
+						<div
+							id="bm-detail"
+							style="display: none">
+							<p class="hc-section-title">Detailed Results</p>
+							<table
+								class="hc-compare-table"
+								id="bm-table">
+								<thead>
+									<tr>
+										<th>Test</th>
+										<th>Time (ms)</th>
+										<th>Score</th>
+										<th>Rating</th>
+									</tr>
+								</thead>
+								<tbody id="bm-tbody"></tbody>
+							</table>
+							<div
+								id="bm-verdict"
+								style="
+									margin-top: 16px;
+									padding: 14px 18px;
+									border-radius: 10px;
+									border-left: 3px solid var(--primary);
+									background: rgba(0, 212, 255, 0.05);
+									color: #aaa;
+									font-size: 0.9rem;
+								"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ===== LIVE CHART TAB ===== -->
+			<div
+				id="livechart"
+				class="tab-content">
+				<div class="grid">
+					<div class="card full-width">
+						<div class="card-header">
+							<span class="card-icon">📈</span
+							><span class="card-title"
+								>Live Battery &amp; Performance Monitor</span
+							>
+						</div>
+						<div
+							style="
+								display: flex;
+								gap: 12px;
+								flex-wrap: wrap;
+								margin-bottom: 18px;
+								align-items: center;
+							">
+							<label style="color: #888; font-size: 0.85rem">Chart Mode:</label>
+							<button
+								class="hc-tab active"
+								id="lc-tab-battery"
+								onclick="lcSetMode(this, 'battery')">
+								🔋 Battery %
+							</button>
+							<button
+								class="hc-tab"
+								id="lc-tab-fps"
+								onclick="lcSetMode(this, 'fps')">
+								🎮 Frame Rate
+							</button>
+							<button
+								class="hc-tab"
+								id="lc-tab-mem"
+								onclick="lcSetMode(this, 'mem')">
+								💾 JS Heap
+							</button>
+							<span style="flex: 1"></span>
+							<label style="color: #888; font-size: 0.85rem">Interval:</label>
+							<select
+								id="lc-interval"
+								style="
+									background: rgba(0, 0, 0, 0.4);
+									border: 1px solid rgba(255, 255, 255, 0.1);
+									border-radius: 8px;
+									color: #fff;
+									padding: 6px 10px;
+									font-size: 0.85rem;
+								"
+								onchange="lcChangeInterval()">
+								<option value="2000">2s</option>
+								<option
+									value="5000"
+									selected>
+									5s
+								</option>
+								<option value="10000">10s</option>
+								<option value="30000">30s</option>
+							</select>
+							<button
+								class="btn"
+								style="padding: 8px 18px; font-size: 0.85rem"
+								onclick="lcToggle()"
+								id="lc-toggle-btn">
+								▶ Start
+							</button>
+							<button
+								class="btn btn-secondary"
+								style="padding: 8px 18px; font-size: 0.85rem"
+								onclick="lcClear()">
+								🗑 Clear
+							</button>
+						</div>
+						<canvas
+							id="lc-canvas"
+							height="260"
+							style="
+								width: 100%;
+								background: rgba(0, 0, 0, 0.2);
+								border-radius: 12px;
+								display: block;
+							"></canvas>
+						<div
+							style="
+								display: grid;
+								grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+								gap: 10px;
+								margin-top: 16px;
+							">
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="lc-current">
+									--
+								</div>
+								<div
+									class="stat-label"
+									id="lc-current-lbl">
+									Current
+								</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="lc-min">
+									--
+								</div>
+								<div class="stat-label">Min</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="lc-max">
+									--
+								</div>
+								<div class="stat-label">Max</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="lc-avg">
+									--
+								</div>
+								<div class="stat-label">Average</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="lc-points">
+									0
+								</div>
+								<div class="stat-label">Data Points</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ===== FINGERPRINT TAB ===== -->
+			<div
+				id="fingerprint"
+				class="tab-content">
+				<div class="grid">
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🔐</span
+							><span class="card-title">Device Fingerprint</span>
+						</div>
+						<div
+							class="alert alert-warning"
+							style="margin-bottom: 16px">
+							🔍 This shows what websites can identify about your device without
+							cookies.
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								style="font-size: 2rem; word-break: break-all"
+								id="fp-hash">
+								Computing...
+							</div>
+							<div class="big-label">Fingerprint Hash</div>
+						</div>
+						<hr class="hc-divider" />
+						<p class="hc-section-title">Fingerprint Components</p>
+						<div id="fp-rows"></div>
+						<hr class="hc-divider" />
+						<div class="btn-group">
+							<button
+								class="btn"
+								onclick="fpGenerate()">
+								🔄 Regenerate
+							</button>
+							<button
+								class="btn btn-secondary"
+								onclick="fpCopy()">
+								📋 Copy Hash
+							</button>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🛡️</span
+							><span class="card-title">Privacy Score</span>
+						</div>
+						<div class="big-display">
+							<div
+								class="big-number"
+								id="fp-score">
+								--
+							</div>
+							<div class="big-label">Privacy Score / 100</div>
+						</div>
+						<div class="progress-bar">
+							<div
+								class="progress-fill"
+								id="fp-score-bar"
+								style="width: 0%">
+								--
+							</div>
+						</div>
+						<hr class="hc-divider" />
+						<p class="hc-section-title">Privacy Checks</p>
+						<div id="fp-privacy-checks"></div>
+						<hr class="hc-divider" />
+						<p class="hc-section-title">Canvas Fingerprint</p>
+						<canvas
+							id="fp-canvas"
+							width="300"
+							height="60"
+							style="
+								border-radius: 8px;
+								border: 1px solid rgba(255, 255, 255, 0.1);
+								display: block;
+								margin: 8px auto;
+								max-width: 100%;
+							"></canvas>
+						<div
+							style="
+								font-size: 0.8rem;
+								color: #666;
+								text-align: center;
+								margin-top: 6px;
+							">
+							Unique per GPU/driver combination
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ===== SENSORS TAB ===== -->
+			<div
+				id="sensors"
+				class="tab-content">
+				<div class="grid">
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🧲</span
+							><span class="card-title">Motion &amp; Orientation</span>
+						</div>
+						<div
+							class="alert alert-info"
+							style="margin-bottom: 14px">
+							📱 Best on mobile. Grant motion permission if prompted.
+						</div>
+						<div
+							style="
+								display: grid;
+								grid-template-columns: repeat(3, 1fr);
+								gap: 10px;
+								margin-bottom: 16px;
+							">
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="s-ax">
+									--
+								</div>
+								<div class="stat-label">Accel X</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="s-ay">
+									--
+								</div>
+								<div class="stat-label">Accel Y</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="s-az">
+									--
+								</div>
+								<div class="stat-label">Accel Z</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="s-rx">
+									--
+								</div>
+								<div class="stat-label">Rotate α</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="s-ry">
+									--
+								</div>
+								<div class="stat-label">Rotate β</div>
+							</div>
+							<div class="stat-box">
+								<div
+									class="stat-number"
+									id="s-rz">
+									--
+								</div>
+								<div class="stat-label">Rotate γ</div>
+							</div>
+						</div>
+						<!-- 3D device visualizer -->
+						<div style="text-align: center; margin-bottom: 10px">
+							<canvas
+								id="s-3d"
+								width="260"
+								height="160"
+								style="
+									border-radius: 12px;
+									background: rgba(0, 0, 0, 0.25);
+									border: 1px solid rgba(255, 255, 255, 0.07);
+								"></canvas>
+						</div>
+						<div class="btn-group">
+							<button
+								class="btn"
+								onclick="sensorsStart()">
+								▶ Enable Sensors
+							</button>
+							<button
+								class="btn btn-danger"
+								onclick="sensorsStop()">
+								■ Stop
+							</button>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🌍</span
+							><span class="card-title">Geolocation</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📍 Latitude</span
+							><span
+								class="info-value"
+								id="geo-lat"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📍 Longitude</span
+							><span
+								class="info-value"
+								id="geo-lon"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🎯 Accuracy (m)</span
+							><span
+								class="info-value"
+								id="geo-acc"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">⛰️ Altitude (m)</span
+							><span
+								class="info-value"
+								id="geo-alt"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🧭 Heading (°)</span
+							><span
+								class="info-value"
+								id="geo-heading"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🚀 Speed (m/s)</span
+							><span
+								class="info-value"
+								id="geo-speed"
+								>--</span
+							>
+						</div>
+						<div
+							class="btn-group"
+							style="margin-top: 16px">
+							<button
+								class="btn"
+								onclick="geoGet()">
+								📍 Get Location
+							</button>
+							<button
+								class="btn btn-secondary"
+								onclick="geoWatch()">
+								👁 Watch Live
+							</button>
+							<button
+								class="btn btn-danger"
+								onclick="geoStop()">
+								■ Stop
+							</button>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">💡</span
+							><span class="card-title">Ambient Light &amp; Proximity</span>
+						</div>
+						<div class="info-row">
+							<span class="info-label">☀️ Light Level (lux)</span
+							><span
+								class="info-value"
+								id="s-light"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">👋 Proximity</span
+							><span
+								class="info-value"
+								id="s-prox"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🎙️ Microphone</span
+							><span
+								class="info-value"
+								id="s-mic"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📷 Camera</span
+							><span
+								class="info-value"
+								id="s-cam"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🎮 Gamepads</span
+							><span
+								class="info-value"
+								id="s-gamepad"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📳 Vibration API</span
+							><span
+								class="info-value"
+								id="s-vibrate"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🔊 Audio Context</span
+							><span
+								class="info-value"
+								id="s-audio"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">🖱️ Pointer Type</span
+							><span
+								class="info-value"
+								id="s-pointer"
+								>--</span
+							>
+						</div>
+						<div
+							class="btn-group"
+							style="margin-top: 12px">
+							<button
+								class="btn"
+								onclick="sensorsDetect()">
+								🔍 Detect All
+							</button>
+							<button
+								class="btn btn-secondary"
+								onclick="sTestVibrate()">
+								📳 Test Vibrate
+							</button>
+						</div>
+					</div>
+					<div class="card">
+						<div class="card-header">
+							<span class="card-icon">🎙️</span
+							><span class="card-title">Audio Analyzer</span>
+						</div>
+						<canvas
+							id="s-audio-canvas"
+							width="400"
+							height="100"
+							style="
+								width: 100%;
+								border-radius: 8px;
+								background: rgba(0, 0, 0, 0.3);
+								border: 1px solid rgba(255, 255, 255, 0.07);
+								display: block;
+								margin-bottom: 12px;
+							"></canvas>
+						<div class="info-row">
+							<span class="info-label">🎵 Sample Rate</span
+							><span
+								class="info-value"
+								id="s-samplerate"
+								>--</span
+							>
+						</div>
+						<div class="info-row">
+							<span class="info-label">📊 Volume Level</span
+							><span
+								class="info-value"
+								id="s-volume"
+								>--</span
+							>
+						</div>
+						<div
+							class="btn-group"
+							style="margin-top: 12px">
+							<button
+								class="btn"
+								onclick="audioStart()">
+								🎙 Start Mic
+							</button>
+							<button
+								class="btn btn-danger"
+								onclick="audioStop()">
+								■ Stop
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- end container -->
+		<script src="./script.js"></script>
+	</body>
+</html>
