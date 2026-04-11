@@ -76,6 +76,7 @@ h1 {
 	margin-bottom: 10px;
 	background: linear-gradient(135deg, var(--primary), var(--secondary));
 	-webkit-background-clip: text;
+	background-clip: text;
 	-webkit-text-fill-color: transparent;
 	position: relative;
 	z-index: 1;
@@ -604,6 +605,7 @@ tr:hover {
 	font-family: "Courier New", monospace;
 	background: linear-gradient(135deg, var(--primary), var(--secondary));
 	-webkit-background-clip: text;
+	background-clip: text;
 	-webkit-text-fill-color: transparent;
 	line-height: 1;
 	margin-bottom: 6px;
