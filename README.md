@@ -41,7 +41,7 @@ To run this project locally, follow these steps:
 
 2.  **Navigate to the project folder:**
     ```bash
-    cd infopcjs
+    cd device-info-deshboard
     ```
 
 ```
