@@ -6,7 +6,7 @@
 
 **InfoPCJS** is a lightweight, high-performance web application designed to fetch and display hardware and system specifications directly within the browser. Built with a focus on speed and privacy, it provides a clean interface for developers and power users to audit their environment.
 
-🌐 **Live Demo:** [https://infopcjs.netlify.app/](https://infopcjs.netlify.app/)
+🌐 **Live Demo:** [https://pcinfos.netlify.app/](https://pcinfos.netlify.app/)
 
 ---
 
