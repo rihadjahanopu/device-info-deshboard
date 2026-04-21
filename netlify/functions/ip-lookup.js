@@ -3,7 +3,7 @@ const https = require("https");
 function httpsGet(url) {
 	return new Promise((resolve, reject) => {
 		https
-			.get(url, (res) => {
+			.get(url, { headers: { "User-Agent": "netlify-function" } }, (res) => {
 				let data = "";
 				res.on("data", (chunk) => (data += chunk));
 				res.on("end", () => {
@@ -32,32 +32,34 @@ exports.handler = async function (event) {
 	}
 
 	const url =
-		ip ? `https://ipwho.is/${encodeURIComponent(ip)}` : `https://ipwho.is/`;
+		ip ?
+			`https://ipapi.co/${encodeURIComponent(ip)}/json/`
+		:	`https://ipapi.co/json/`;
 
 	try {
 		const raw = await httpsGet(url);
 
-		if (raw.success === false) {
+		if (raw.error) {
 			return {
 				statusCode: 400,
 				headers,
-				body: JSON.stringify({ error: raw.message || "Invalid IP" }),
+				body: JSON.stringify({ error: raw.reason || "Invalid IP" }),
 			};
 		}
 
 		const data = {
 			ip: raw.ip,
-			country_name: raw.country,
+			country_name: raw.country_name,
 			country_code: raw.country_code,
 			city: raw.city,
 			region: raw.region,
 			latitude: raw.latitude,
 			longitude: raw.longitude,
-			timezone: raw.timezone?.id,
-			org: raw.connection?.isp || raw.connection?.org,
-			asn: "AS" + raw.connection?.asn,
-			network: raw.connection?.route,
-			version: raw.type?.toUpperCase() || "IPv4",
+			timezone: raw.timezone,
+			org: raw.org,
+			asn: raw.asn,
+			network: raw.network,
+			version: raw.version || "IPv4",
 		};
 
 		return { statusCode: 200, headers, body: JSON.stringify(data) };
