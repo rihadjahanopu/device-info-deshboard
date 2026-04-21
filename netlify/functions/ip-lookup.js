@@ -2,29 +2,43 @@ const https = require("https");
 
 function httpsGet(url) {
 	return new Promise((resolve, reject) => {
-		const options = {
-			headers: {
-				"User-Agent": "Mozilla/5.0",
-				Accept: "application/json",
+		const req = https.get(
+			url,
+			{
+				headers: {
+					"User-Agent": "Mozilla/5.0",
+					Accept: "application/json",
+				},
 			},
-		};
-		https
-			.get(url, options, (res) => {
+			(res) => {
 				let data = "";
+
 				res.on("data", (chunk) => (data += chunk));
+
 				res.on("end", () => {
 					try {
-						resolve({ status: res.statusCode, body: JSON.parse(data) });
+						resolve({
+							status: res.statusCode,
+							body: JSON.parse(data),
+						});
 					} catch (e) {
-						reject(new Error("JSON parse error: " + data.slice(0, 100)));
+						reject(new Error("JSON parse error"));
 					}
 				});
-			})
-			.on("error", reject);
+			}
+		);
+
+		// ✅ timeout protection
+		req.setTimeout(7000, () => {
+			req.destroy();
+			reject(new Error("Request timeout"));
+		});
+
+		req.on("error", reject);
 	});
 }
 
-exports.handler = async function (event) {
+exports.handler = async (event) => {
 	const ip = event.queryStringParameters?.ip || "";
 
 	const headers = {
@@ -33,11 +47,15 @@ exports.handler = async function (event) {
 		"Content-Type": "application/json",
 	};
 
+	// ✅ CORS preflight
 	if (event.httpMethod === "OPTIONS") {
-		return { statusCode: 204, headers, body: "" };
+		return {
+			statusCode: 204,
+			headers,
+			body: "",
+		};
 	}
 
-	// দুটো API try করবে, একটা fail করলে আরেকটা
 	const apis = [
 		{
 			url:
@@ -45,6 +63,7 @@ exports.handler = async function (event) {
 			parse: (raw) => {
 				if (raw.success === false)
 					throw new Error(raw.message || "ipwho failed");
+
 				return {
 					ip: raw.ip,
 					country_name: raw.country,
@@ -53,12 +72,11 @@ exports.handler = async function (event) {
 					region: raw.region,
 					latitude: raw.latitude,
 					longitude: raw.longitude,
-					timezone:
-						raw.timezone && raw.timezone.id ? raw.timezone.id : raw.timezone,
-					org: raw.connection ? raw.connection.isp || raw.connection.org : null,
-					asn: raw.connection ? "AS" + raw.connection.asn : null,
-					network: raw.connection ? raw.connection.route : null,
-					version: raw.type ? raw.type.toUpperCase() : "IPv4",
+					timezone: raw.timezone?.id || raw.timezone,
+					org: raw.connection?.isp || raw.connection?.org,
+					asn: raw.connection?.asn ? "AS" + raw.connection.asn : null,
+					network: raw.connection?.route,
+					version: raw.type?.toUpperCase() || "IPv4",
 				};
 			},
 		},
@@ -69,6 +87,7 @@ exports.handler = async function (event) {
 				:	`https://ipapi.co/json/`,
 			parse: (raw) => {
 				if (raw.error) throw new Error(raw.reason || "ipapi failed");
+
 				return {
 					ip: raw.ip,
 					country_name: raw.country_name,
@@ -91,11 +110,21 @@ exports.handler = async function (event) {
 
 	for (const api of apis) {
 		try {
+			console.log("Calling:", api.url);
+
 			const { status, body } = await httpsGet(api.url);
-			if (status !== 200) throw new Error(`HTTP ${status}`);
+
+			if (status !== 200) throw new Error("HTTP " + status);
+
 			const data = api.parse(body);
-			if (!data.ip) throw new Error("No IP in response");
-			return { statusCode: 200, headers, body: JSON.stringify(data) };
+
+			if (!data.ip) throw new Error("Invalid response");
+
+			return {
+				statusCode: 200,
+				headers,
+				body: JSON.stringify(data),
+			};
 		} catch (err) {
 			lastError = err.message;
 			continue;
@@ -105,6 +134,9 @@ exports.handler = async function (event) {
 	return {
 		statusCode: 502,
 		headers,
-		body: JSON.stringify({ error: "All APIs failed: " + lastError }),
+		body: JSON.stringify({
+			error: "All APIs failed",
+			details: lastError,
+		}),
 	};
 };
