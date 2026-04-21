@@ -1,3 +1,23 @@
+const https = require("https");
+
+function httpsGet(url) {
+	return new Promise((resolve, reject) => {
+		https
+			.get(url, (res) => {
+				let data = "";
+				res.on("data", (chunk) => (data += chunk));
+				res.on("end", () => {
+					try {
+						resolve(JSON.parse(data));
+					} catch (e) {
+						reject(new Error("JSON parse error"));
+					}
+				});
+			})
+			.on("error", reject);
+	});
+}
+
 exports.handler = async function (event) {
 	const ip = event.queryStringParameters?.ip || "";
 
@@ -15,12 +35,9 @@ exports.handler = async function (event) {
 		ip ? `https://ipwho.is/${encodeURIComponent(ip)}` : `https://ipwho.is/`;
 
 	try {
-		const res = await fetch(url);
-		if (!res.ok) throw new Error(`Upstream HTTP ${res.status}`);
+		const raw = await httpsGet(url);
 
-		const raw = await res.json();
-
-		if (!raw.success && raw.success !== undefined) {
+		if (raw.success === false) {
 			return {
 				statusCode: 400,
 				headers,
