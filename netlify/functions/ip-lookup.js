@@ -1,5 +1,6 @@
 const https = require("https");
 
+// ─── HTTPS helper with timeout ─────────────────────────────
 function httpsGet(url) {
 	return new Promise((resolve, reject) => {
 		const req = https.get(
@@ -38,8 +39,19 @@ function httpsGet(url) {
 	});
 }
 
+// ─── MAIN HANDLER ─────────────────────────────
 exports.handler = async (event) => {
-	const ip = event.queryStringParameters?.ip || "";
+	// ✅ REAL CLIENT IP (Netlify headers)
+	const realIP =
+		event.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+		event.headers["client-ip"] ||
+		"";
+
+	// user input IP (optional)
+	const queryIP = event.queryStringParameters?.ip;
+
+	// priority: input > real IP
+	const ip = queryIP || realIP;
 
 	const headers = {
 		"Access-Control-Allow-Origin": "*",
@@ -49,13 +61,10 @@ exports.handler = async (event) => {
 
 	// ✅ CORS preflight
 	if (event.httpMethod === "OPTIONS") {
-		return {
-			statusCode: 204,
-			headers,
-			body: "",
-		};
+		return { statusCode: 204, headers, body: "" };
 	}
 
+	// ─── API fallback list ─────────────────────────────
 	const apis = [
 		{
 			url:
@@ -108,9 +117,10 @@ exports.handler = async (event) => {
 
 	let lastError = "";
 
+	// ─── Try APIs one by one ─────────────────────────────
 	for (const api of apis) {
 		try {
-			console.log("Calling:", api.url);
+			console.log("Trying:", api.url);
 
 			const { status, body } = await httpsGet(api.url);
 
@@ -131,12 +141,14 @@ exports.handler = async (event) => {
 		}
 	}
 
+	// ─── All failed ─────────────────────────────
 	return {
 		statusCode: 502,
 		headers,
 		body: JSON.stringify({
 			error: "All APIs failed",
 			details: lastError,
+			ipUsed: ip || "none",
 		}),
 	};
 };
