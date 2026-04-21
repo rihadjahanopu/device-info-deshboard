@@ -6,6 +6,14 @@
 			name="viewport"
 			content="width=device-width, initial-scale=1.0" />
 		<title>🖥️ Ultimate Device Info Dashboard</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 		<link
 			rel="stylesheet"
 			href="./main.css" />
@@ -13,8 +21,10 @@
 	<body>
 		<div class="container">
 			<header>
-				<h1>🖥️ Ultimate Device Info Dashboard</h1>
-				<p class="subtitle">
+				<h1 class="text-4xl font-black mb-4">
+					🖥️ Ultimate Device Info Dashboard
+				</h1>
+				<div class="subtitle">
 					Completely <span class="open-source">Open-source</span>
 					System Analysis &amp; Battery Health Monitor
 					<br />
@@ -24,10 +34,14 @@
 							>Rihad Jahan Opu</a
 						></span
 					>
-					<h4><a class="git" href="https://github.com/rihadjahanopu/device-info-deshboard">
-						Github Link for Project
-					</a></h4>
-				</p>
+					<h4>
+						<a
+							class="git"
+							href="https://github.com/rihadjahanopu/device-info-deshboard">
+							Github Link for Project
+						</a>
+					</h4>
+				</div>
 
 				<div
 					class="timestamp"
@@ -92,6 +106,11 @@
 					class="tab"
 					onclick="showTab(this, 'sensors')">
 					🧲 Sensors
+				</button>
+				<button
+					class="tab"
+					onclick="showTab(this, 'ip')">
+					<i class="fas fa-search-location text-blue-400"></i> IP Lookup
 				</button>
 			</div>
 
@@ -1996,6 +2015,365 @@
 						</div>
 					</div>
 				</div>
+			</div>
+			<div
+				id="ip"
+				class="tab-content">
+				<!-- Error Toast Container -->
+				<div id="toastContainer"></div>
+
+				<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+					<!-- Search & Quick Stats -->
+					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+						<!-- Search Panel -->
+						<div
+							class="lg:col-span-2 glass-panel rounded-xl p-6 relative overflow-hidden">
+							<div class="scan-line"></div>
+							<div class="relative z-10">
+								<div class="flex justify-between mb-4">
+									<h2
+										class="text-lg font-semibold mb-4 flex items-center gap-2">
+										<i class="fas fa-search-location text-blue-400"></i>
+										IP Address Lookup
+									</h2>
+									<div
+										class="flex items-center gap-2 text-sm text-gray-400 bg-gray-800/50 px-3 py-1.5 rounded-full border border-gray-700">
+										<span
+											class="status-dot status-online"
+											id="connectionStatus"></span>
+										<span id="connectionText">Connected</span>
+									</div>
+								</div>
+
+								<div class="flex gap-3 mb-4">
+									<div class="flex-1 relative">
+										<i
+											class="fas fa-globe absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+										<input
+											type="text"
+											id="ipInput"
+											placeholder="IP address লিখুন (যেমন: 8.8.8.8)..."
+											class="ip-input w-full bg-gray-800/50 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-gray-100 placeholder-gray-500 mono text-sm" />
+									</div>
+									<button
+										onclick="lookupIP()"
+										id="trackBtn"
+										class="btn-primary px-6 py-3 rounded-lg font-medium text-sm flex items-center gap-2">
+										<i class="fas fa-search"></i>
+										Track
+									</button>
+									<button
+										onclick="trackMyIP()"
+										id="myIpBtn"
+										class="bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded-lg font-medium text-sm transition-colors">
+										<i class="fas fa-crosshairs"></i>
+									</button>
+								</div>
+								<div class="flex gap-2 text-xs text-gray-500">
+									<span class="bg-gray-800/50 px-2 py-1 rounded">IPv4</span>
+									<span class="bg-gray-800/50 px-2 py-1 rounded">IPv6</span>
+									<span class="bg-gray-800/50 px-2 py-1 rounded">Domain</span>
+								</div>
+								<div
+									id="fallbackNotice"
+									class="fallback-notice hidden">
+									<i class="fas fa-exclamation-triangle mr-2"></i>
+									<span id="fallbackText"></span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Live Stats -->
+						<div class="glass-panel rounded-xl p-6">
+							<h3
+								class="text-sm font-semibold text-gray-400 mb-4 uppercase tracking-wider">
+								Live Traffic Stats
+							</h3>
+							<div class="space-y-4">
+								<div class="flex justify-between items-center">
+									<span class="text-gray-400 text-sm">Active Connections</span>
+									<span
+										class="text-2xl font-bold text-blue-400 mono"
+										id="activeConnections"
+										>0</span
+									>
+								</div>
+								<div class="w-full bg-gray-800 rounded-full h-2">
+									<div
+										class="bg-blue-500 h-2 rounded-full traffic-bar"
+										style="width: 0%"
+										id="trafficBar"></div>
+								</div>
+								<div class="grid grid-cols-2 gap-4 pt-2">
+									<div class="bg-gray-800/50 rounded-lg p-3">
+										<div class="text-xs text-gray-500 mb-1">Requests/min</div>
+										<div
+											class="text-lg font-semibold mono"
+											id="reqPerMin">
+											0
+										</div>
+									</div>
+									<div class="bg-gray-800/50 rounded-lg p-3">
+										<div class="text-xs text-gray-500 mb-1">
+											Threats Blocked
+										</div>
+										<div
+											class="text-lg font-semibold text-red-400 mono"
+											id="threatsBlocked">
+											0
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Main Content Grid -->
+					<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+						<!-- IP Details -->
+						<div class="space-y-6">
+							<!-- Current IP Card -->
+							<div class="gradient-border p-6 relative">
+								<div class="absolute top-4 right-4">
+									<span
+										class="bg-green-500/10 text-green-400 text-xs px-2 py-1 rounded-full border border-green-500/20">
+										<i class="fas fa-shield-alt mr-1"></i>Secure
+									</span>
+								</div>
+								<h3 class="text-sm font-semibold text-gray-400 mb-3">
+									Your IP Address
+								</h3>
+								<div
+									class="text-3xl font-bold mono text-white mb-2"
+									id="currentIP">
+									Loading...
+								</div>
+								<div class="flex items-center gap-2 text-sm text-gray-400">
+									<i class="fas fa-clock text-blue-400"></i>
+									<span id="lastUpdated">Just now</span>
+								</div>
+							</div>
+
+							<!-- Geolocation Data -->
+							<div class="glass-panel rounded-xl p-6">
+								<h3
+									class="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">
+									<i class="fas fa-map-marker-alt text-red-400"></i>
+									Geolocation
+								</h3>
+								<div
+									class="space-y-3"
+									id="geoData">
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">Country</span>
+										<span
+											class="font-medium"
+											id="country"
+											>-</span
+										>
+									</div>
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">City</span>
+										<span
+											class="font-medium"
+											id="city"
+											>-</span
+										>
+									</div>
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">Region</span>
+										<span
+											class="font-medium"
+											id="region"
+											>-</span
+										>
+									</div>
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">Coordinates</span>
+										<span
+											class="font-medium mono text-xs"
+											id="coords"
+											>-</span
+										>
+									</div>
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">Timezone</span>
+										<span
+											class="font-medium"
+											id="timezone"
+											>-</span
+										>
+									</div>
+									<div class="flex justify-between items-center py-2">
+										<span class="text-gray-400 text-sm">ISP / Org</span>
+										<span
+											class="font-medium text-right text-xs"
+											id="isp"
+											>-</span
+										>
+									</div>
+								</div>
+							</div>
+
+							<!-- Network Info -->
+							<div class="glass-panel rounded-xl p-6">
+								<h3
+									class="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">
+									<i class="fas fa-ethernet text-purple-400"></i>
+									Network Details
+								</h3>
+								<div class="space-y-3">
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">Type</span>
+										<span
+											class="font-medium"
+											id="networkType"
+											>IPv4</span
+										>
+									</div>
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">ASN</span>
+										<span
+											class="font-medium mono"
+											id="asn"
+											>-</span
+										>
+									</div>
+									<div
+										class="flex justify-between items-center py-2 border-b border-gray-800">
+										<span class="text-gray-400 text-sm">Route</span>
+										<span
+											class="font-medium mono text-xs"
+											id="route"
+											>-</span
+										>
+									</div>
+									<div class="flex justify-between items-center py-2">
+										<span class="text-gray-400 text-sm">User Agent</span>
+										<span
+											class="font-medium text-xs truncate max-w-[150px]"
+											id="userAgent"
+											title=""
+											>-</span
+										>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Map & Visualization -->
+						<div class="lg:col-span-2 space-y-6">
+							<!-- Map -->
+							<div class="glass-panel rounded-xl p-1 h-[400px] relative">
+								<div id="map"></div>
+								<div
+									class="absolute bottom-4 left-4 bg-gray-900/90 backdrop-blur px-3 py-2 rounded-lg border border-gray-700 text-xs">
+									<div class="flex items-center gap-2">
+										<div class="w-3 h-3 rounded-full bg-blue-500"></div>
+										<span>Target Location</span>
+									</div>
+								</div>
+							</div>
+
+							<!-- Recent Activity Log -->
+							<div class="glass-panel rounded-xl p-6">
+								<h3
+									class="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">
+									<i class="fas fa-list-ul text-yellow-400"></i>
+									Connection Log
+								</h3>
+								<div class="overflow-x-auto">
+									<table class="w-full text-sm">
+										<thead>
+											<tr class="text-gray-500 border-b border-gray-800">
+												<th class="text-left py-2 px-2">Time</th>
+												<th class="text-left py-2 px-2">IP Address</th>
+												<th class="text-left py-2 px-2">Location</th>
+												<th class="text-left py-2 px-2">Status</th>
+												<th class="text-left py-2 px-2">Latency</th>
+											</tr>
+										</thead>
+										<tbody
+											id="activityLog"
+											class="mono text-xs">
+											<!-- Dynamic content -->
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Tools Section -->
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+						<div
+							class="glass-panel rounded-xl p-6 hover:border-blue-500/50 transition-colors cursor-pointer"
+							onclick="runPingTest()">
+							<div class="flex items-center gap-3 mb-3">
+								<div
+									class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+									<i class="fas fa-broadcast-tower text-blue-400"></i>
+								</div>
+								<div>
+									<h4 class="font-semibold">Ping Test</h4>
+									<p class="text-xs text-gray-500">Check connectivity</p>
+								</div>
+							</div>
+							<div
+								class="text-2xl font-bold mono text-blue-400"
+								id="pingResult">
+								-- ms
+							</div>
+						</div>
+
+						<div
+							class="glass-panel rounded-xl p-6 hover:border-purple-500/50 transition-colors cursor-pointer"
+							onclick="checkDNS()">
+							<div class="flex items-center gap-3 mb-3">
+								<div
+									class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+									<i class="fas fa-server text-purple-400"></i>
+								</div>
+								<div>
+									<h4 class="font-semibold">DNS Lookup</h4>
+									<p class="text-xs text-gray-500">Resolve domains</p>
+								</div>
+							</div>
+							<div
+								class="text-lg font-bold mono text-purple-400 truncate"
+								id="dnsResult">
+								--
+							</div>
+						</div>
+
+						<div
+							class="glass-panel rounded-xl p-6 hover:border-green-500/50 transition-colors cursor-pointer"
+							onclick="checkSecurity()">
+							<div class="flex items-center gap-3 mb-3">
+								<div
+									class="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+									<i class="fas fa-shield-virus text-green-400"></i>
+								</div>
+								<div>
+									<h4 class="font-semibold">Security Check</h4>
+									<p class="text-xs text-gray-500">Proxy/Tor/VPN detect</p>
+								</div>
+							</div>
+							<div
+								class="text-lg font-bold mono text-green-400"
+								id="securityResult">
+								Scanning...
+							</div>
+						</div>
+					</div>
+				</main>
 			</div>
 		</div>
 		<!-- end container -->
