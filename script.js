@@ -1736,127 +1736,79 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 let currentMarker = null;
 let isTracking = false;
 
-// Multiple API endpoints with fallback
-const API_ENDPOINTS = [
-	{
-		name: "ipapi.co",
-		url: "https://ipapi.co/json/",
-		ipUrl: (ip) => `https://ipapi.co/${ip}/json/`,
-		parser: (data) => ({
-			ip: data.ip,
-			country_name: data.country_name,
-			country_code: data.country_code,
-			city: data.city,
-			region: data.region,
-			latitude: data.latitude,
-			longitude: data.longitude,
-			timezone: data.timezone,
-			org: data.org,
-			asn: data.asn,
-			network: data.network,
-			version: data.version,
-		}),
-	},
-	{
-		name: "ip-api.com",
-		url: "http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,org,as,query",
-		ipUrl: (ip) =>
-			`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,org,as,query`,
-		parser: (data) => ({
-			ip: data.query,
-			country_name: data.country,
-			country_code: data.countryCode,
-			city: data.city,
-			region: data.regionName,
-			latitude: data.lat,
-			longitude: data.lon,
-			timezone: data.timezone,
-			org: data.isp || data.org,
-			asn: data.as,
-			network: data.as,
-			version: data.query.includes(":") ? "IPv6" : "IPv4",
-		}),
-	},
-	{
-		name: "ipwho.is",
-		url: "https://ipwho.is/",
-		ipUrl: (ip) => `https://ipwho.is/${ip}`,
-		parser: (data) => ({
-			ip: data.ip,
-			country_name: data.country,
-			country_code: data.country_code,
-			city: data.city,
-			region: data.region,
-			latitude: data.latitude,
-			longitude: data.longitude,
-			timezone: data.timezone.id,
-			org: data.connection?.isp || data.connection?.org,
-			asn: data.connection?.asn,
-			network: data.connection?.route,
-			version: data.type?.toUpperCase(),
-		}),
-	},
-];
+// ─── Netlify proxy vs direct API ─────────────────────────────────────
 
-// Fetch with timeout and fallback
+const IS_NETLIFY =
+	window.location.hostname !== "localhost" &&
+	window.location.hostname !== "127.0.0.1";
+
 async function fetchWithFallback(ip = "") {
 	setLoading(true);
-	// document.getElementById("apiSource").textContent = "API: Trying...";
 
 	const fallbackNotice = document.getElementById("fallbackNotice");
 	const fallbackText = document.getElementById("fallbackText");
 
-	for (let i = 0; i < API_ENDPOINTS.length; i++) {
-		const api = API_ENDPOINTS[i];
-		try {
+	fallbackNotice.classList.add("hidden");
+
+	try {
+		let data;
+
+		if (IS_NETLIFY) {
+			// ── Netlify: server-side proxy (CORS-safe) ──────────────────────
+			const url =
+				ip ?
+					`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
+				:	`/.netlify/functions/ip-lookup`;
+
 			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 5000);
+			const tid = setTimeout(() => controller.abort(), 8000);
+			const res = await fetch(url, { signal: controller.signal });
+			clearTimeout(tid);
 
-			const url = ip ? api.ipUrl(ip) : api.url;
-			const response = await fetch(url, {
-				signal: controller.signal,
-				mode: "cors",
-			});
-			clearTimeout(timeoutId);
+			if (!res.ok) throw new Error(`Function error ${res.status}`);
+			const json = await res.json();
+			if (json.error) throw new Error(json.error);
+			data = json;
+		} else {
+			// ── Local dev: browser থেকে সরাসরি ipwho.is ──────────────────
+			const url = ip ? `https://ipwho.is/${ip}` : `https://ipwho.is/`;
 
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			const controller = new AbortController();
+			const tid = setTimeout(() => controller.abort(), 8000);
+			const res = await fetch(url, { signal: controller.signal, mode: "cors" });
+			clearTimeout(tid);
 
-			const rawData = await response.json();
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const raw = await res.json();
 
-			// Check for API-specific errors
-			if (rawData.error || rawData.status === "fail") {
-				throw new Error(rawData.message || rawData.reason || "API error");
-			}
+			if (raw.success === false) throw new Error(raw.message || "API error");
 
-			const data = api.parser(rawData);
-
-			// Validate parsed data
-			if (!data.ip) throw new Error("Invalid data structure");
-
-			// document.getElementById("apiSource").textContent =
-			// 	`API: ${api.name}`;
-			fallbackNotice.classList.add("hidden");
-			setLoading(false);
-			return data;
-		} catch (error) {
-			console.warn(`${api.name} failed:`, error.message);
-
-			if (i < API_ENDPOINTS.length - 1) {
-				fallbackNotice.classList.remove("hidden");
-				fallbackText.textContent = `${api.name} failed, trying ${API_ENDPOINTS[i + 1].name}...`;
-				await delay(500);
-			} else {
-				fallbackNotice.classList.remove("hidden");
-				fallbackText.textContent =
-					"All APIs failed. Please check your internet connection.";
-				showToast(
-					"All APIs failed. Please check your internet connection.",
-					"error"
-				);
-				setLoading(false);
-				throw new Error("All APIs failed");
-			}
+			data = {
+				ip: raw.ip,
+				country_name: raw.country,
+				country_code: raw.country_code,
+				city: raw.city,
+				region: raw.region,
+				latitude: raw.latitude,
+				longitude: raw.longitude,
+				timezone: raw.timezone?.id,
+				org: raw.connection?.isp || raw.connection?.org,
+				asn: "AS" + raw.connection?.asn,
+				network: raw.connection?.route,
+				version: raw.type?.toUpperCase() || "IPv4",
+			};
 		}
+
+		if (!data?.ip) throw new Error("Invalid response — no IP returned");
+
+		setLoading(false);
+		return data;
+	} catch (err) {
+		fallbackNotice.classList.remove("hidden");
+		fallbackText.textContent = `Error: ${err.message}`;
+		showToast(err.message, "error");
+		setLoading(false);
+		throw err;
 	}
 }
 
