@@ -1733,55 +1733,19 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 
 let currentMarker = null;
 
-// ================= ENV =================
-const IS_NETLIFY =
-	location.hostname.includes("netlify.app") ||
-	location.hostname.includes("netlify");
-
 // ================= FETCH =================
 async function fetchWithFallback(ip = "") {
 	setLoading(true);
-
 	try {
-		let data;
+		const url =
+			ip ?
+				`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
+			:	`/.netlify/functions/ip-lookup`;
+		const res = await fetch(url);
+		if (!res.ok) throw new Error("Network response error");
 
-		if (IS_NETLIFY) {
-			const url =
-				ip ?
-					`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
-				:	`/.netlify/functions/ip-lookup`;
-
-			const res = await fetch(url);
-			if (!res.ok) throw new Error("Function failed");
-
-			data = await res.json();
-		} else {
-			// ✅ MODIFIED: Changed from ipwho.is to ipapi.co
-			const url =
-				ip ? `https://ipapi.co/${ip}/json/` : `https://ipapi.co/json/`;
-			const res = await fetch(url);
-			const raw = await res.json();
-
-			if (raw.error) throw new Error(raw.reason || "API error");
-
-			// ✅ MODIFIED: Mapped exactly to ipapi.co fields
-			data = {
-				ip: raw.ip,
-				country_name: raw.country_name,
-				country_code: raw.country_code,
-				city: raw.city,
-				region: raw.region,
-				latitude: raw.latitude,
-				longitude: raw.longitude,
-				timezone: raw.timezone,
-				org: raw.org,
-				asn: raw.asn,
-				network: raw.network,
-				version: raw.version,
-			};
-		}
-
-		if (!data?.ip) throw new Error("Invalid data");
+		const data = await res.json();
+		if (data.error) throw new Error(data.error);
 
 		return data;
 	} catch (err) {
@@ -1792,44 +1756,15 @@ async function fetchWithFallback(ip = "") {
 	}
 }
 
-// ================= UI =================
-function setLoading(loading) {
-	document.getElementById("trackBtn").disabled = loading;
-	document.getElementById("myIpBtn").disabled = loading;
-
-	document.getElementById("connectionText").textContent =
-		loading ? "Loading..." : "Connected";
-}
-
-// Toast
-function showToast(msg) {
-	const el = document.createElement("div");
-	el.className = "error-toast";
-	el.textContent = msg;
-
-	document.getElementById("toastContainer").appendChild(el);
-	setTimeout(() => el.remove(), 4000);
-}
-
-// ================= ACTION =================
-async function trackMyIP() {
-	document.getElementById("ipInput").value = "";
-
-	try {
-		const data = await fetchWithFallback();
-		updateUI(data);
-		updateMap(data.latitude, data.longitude, data.city);
-		addToLog(data);
-	} catch {}
-}
-
+// ================= UI ACTION =================
 async function lookupIP() {
-	const ip = document.getElementById("ipInput").value.trim();
+	const input = document.getElementById("ipInput");
+	const ip = input.value.trim();
 
-	if (!ip) return trackMyIP();
+	// IPv4 এবং IPv6 উভয়ই সাপোর্ট করবে
+	const isValidIP =
+		/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$|^[a-fA-F0-9:]+$/.test(ip) || ip === "";
 
-	// ✅ MODIFIED: Regex updated to support both IPv4 and IPv6
-	const isValidIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$|^[a-fA-F0-9:]+$/.test(ip);
 	if (!isValidIP) {
 		showToast("Invalid IP format");
 		return;
@@ -1840,34 +1775,45 @@ async function lookupIP() {
 		updateUI(data);
 		updateMap(data.latitude, data.longitude, data.city);
 		addToLog(data);
-	} catch {}
+	} catch (e) {
+		console.error(e);
+	}
 }
 
-// ================= UPDATE UI =================
+// UI আপডেট ফাংশন
 function updateUI(d) {
 	document.getElementById("currentIP").textContent = d.ip || "-";
-
 	document.getElementById("country").textContent =
-		d.country_name ?
-			`${d.country_name}${d.country_code ? ` (${d.country_code})` : ""}`
-		:	"-";
-
+		d.country_name ? `${d.country_name} (${d.country_code})` : "-";
 	document.getElementById("city").textContent = d.city || "-";
 	document.getElementById("region").textContent = d.region || "-";
-
 	document.getElementById("coords").textContent =
 		d.latitude && d.longitude ? `${d.latitude}, ${d.longitude}` : "-";
-
 	document.getElementById("timezone").textContent = d.timezone || "-";
 	document.getElementById("isp").textContent = d.org || "-";
 	document.getElementById("asn").textContent = d.asn || "-";
 	document.getElementById("route").textContent = d.network || "-";
-
-	document.getElementById("userAgent").textContent = navigator.userAgent;
 	document.getElementById("networkType").textContent = d.version || "IPv4";
-
 	document.getElementById("lastUpdated").textContent =
 		new Date().toLocaleTimeString();
+}
+
+// সেট লোডিং
+function setLoading(loading) {
+	const btn = document.getElementById("trackBtn");
+	if (btn) btn.disabled = loading;
+	document.getElementById("connectionText").textContent =
+		loading ? "Loading..." : "Connected";
+}
+
+// টোস্ট
+function showToast(msg) {
+	const container = document.getElementById("toastContainer");
+	const el = document.createElement("div");
+	el.className = "error-toast";
+	el.textContent = msg;
+	container.appendChild(el);
+	setTimeout(() => el.remove(), 4000);
 }
 
 // ================= MAP =================
