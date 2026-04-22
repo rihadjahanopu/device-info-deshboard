@@ -1727,11 +1727,32 @@ const map = L.map("map", {
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
 	maxZoom: 19,
+	attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
 }).addTo(map);
 
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
 let currentMarker = null;
+
+// ================= UTILITY =================
+function escapeHtml(str) {
+	if (str == null) return "";
+	return String(str)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
+}
+
+function isValidIP(ip) {
+	if (!ip || ip === "") return true;
+	const ipv4 =
+		/^(?:(?:25[0-5]|2[0-4]\d|1?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|1?\d\d?)$/;
+	const ipv6 =
+		/^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}$|^:(?::[0-9a-fA-F]{1,4}){1,7}$|^::$|^::1$/;
+	return ipv4.test(ip) || ipv6.test(ip);
+}
 
 // ================= FETCH =================
 async function fetchWithFallback(ip = "") {
@@ -1741,15 +1762,25 @@ async function fetchWithFallback(ip = "") {
 			ip ?
 				`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
 			:	`/.netlify/functions/ip-lookup`;
-		const res = await fetch(url);
-		if (!res.ok) throw new Error("Network response error");
+
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+		const res = await fetch(url, { signal: controller.signal });
+		clearTimeout(timeoutId);
+
+		if (!res.ok) throw new Error(`Network error: ${res.status}`);
 
 		const data = await res.json();
 		if (data.error) throw new Error(data.error);
 
 		return data;
 	} catch (err) {
-		showToast(err.message);
+		if (err.name === "AbortError") {
+			showToast("Request timeout");
+		} else {
+			showToast(err.message);
+		}
 		throw err;
 	} finally {
 		setLoading(false);
@@ -1759,13 +1790,11 @@ async function fetchWithFallback(ip = "") {
 // ================= UI ACTION =================
 async function lookupIP() {
 	const input = document.getElementById("ipInput");
+	if (!input) return;
+
 	const ip = input.value.trim();
 
-	// IPv4 এবং IPv6 উভয়ই সাপোর্ট করবে
-	const isValidIP =
-		/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$|^[a-fA-F0-9:]+$/.test(ip) || ip === "";
-
-	if (!isValidIP) {
+	if (!isValidIP(ip)) {
 		showToast("Invalid IP format");
 		return;
 	}
@@ -1776,44 +1805,75 @@ async function lookupIP() {
 		updateMap(data.latitude, data.longitude, data.city);
 		addToLog(data);
 	} catch (e) {
-		console.error(e);
+		console.error("Lookup failed:", e);
 	}
 }
 
-// UI আপডেট ফাংশন
-function updateUI(d) {
-	document.getElementById("currentIP").textContent = d.ip || "-";
-	document.getElementById("country").textContent =
-		d.country_name ? `${d.country_name} (${d.country_code})` : "-";
-	document.getElementById("city").textContent = d.city || "-";
-	document.getElementById("region").textContent = d.region || "-";
-	document.getElementById("coords").textContent =
-		d.latitude && d.longitude ? `${d.latitude}, ${d.longitude}` : "-";
-	document.getElementById("timezone").textContent = d.timezone || "-";
-	document.getElementById("isp").textContent = d.org || "-";
-	document.getElementById("asn").textContent = d.asn || "-";
-	document.getElementById("route").textContent = d.network || "-";
-	document.getElementById("networkType").textContent = d.version || "IPv4";
-	document.getElementById("lastUpdated").textContent =
-		new Date().toLocaleTimeString();
+async function trackMyIP() {
+	try {
+		const data = await fetchWithFallback();
+		updateUI(data);
+		updateMap(data.latitude, data.longitude, data.city);
+		addToLog(data);
+	} catch (e) {
+		console.error("Auto IP detection failed:", e);
+	}
 }
 
-// সেট লোডিং
+function updateUI(d) {
+	const setText = (id, value) => {
+		const el = document.getElementById(id);
+		if (el) el.textContent = value || "-";
+	};
+
+	setText("currentIP", d.ip);
+	setText(
+		"country",
+		d.country_name ? `${d.country_name} (${d.country_code})` : null
+	);
+	setText("city", d.city);
+	setText("region", d.region);
+	setText(
+		"coords",
+		d.latitude != null && d.longitude != null ?
+			`${d.latitude}, ${d.longitude}`
+		:	null
+	);
+	setText("timezone", d.timezone);
+	setText("isp", d.org);
+	setText("asn", d.asn);
+	setText("route", d.network);
+	setText("networkType", d.version || "IPv4");
+
+	const lastUpdated = document.getElementById("lastUpdated");
+	if (lastUpdated) {
+		lastUpdated.textContent = new Date().toLocaleTimeString();
+	}
+}
+
 function setLoading(loading) {
 	const btn = document.getElementById("trackBtn");
 	if (btn) btn.disabled = loading;
-	document.getElementById("connectionText").textContent =
-		loading ? "Loading..." : "Connected";
+
+	const connText = document.getElementById("connectionText");
+	if (connText) connText.textContent = loading ? "Loading..." : "Connected";
 }
 
-// টোস্ট
 function showToast(msg) {
 	const container = document.getElementById("toastContainer");
+	if (!container) {
+		console.error("Toast container missing:", msg);
+		return;
+	}
+
 	const el = document.createElement("div");
 	el.className = "error-toast";
 	el.textContent = msg;
 	container.appendChild(el);
-	setTimeout(() => el.remove(), 4000);
+
+	setTimeout(() => {
+		if (el.parentNode) el.remove();
+	}, 4000);
 }
 
 // ================= MAP =================
@@ -1825,29 +1885,36 @@ function updateMap(lat, lng, city) {
 	currentMarker = L.marker([lat, lng]).addTo(map);
 	map.setView([lat, lng], 10);
 
-	currentMarker.bindPopup(city || "Unknown").openPopup();
+	currentMarker.bindPopup(escapeHtml(city) || "Unknown").openPopup();
 }
 
 // ================= LOG =================
 function addToLog(d) {
+	const table = document.getElementById("activityLog");
+	if (!table) return;
+
+	const tbody = table.querySelector("tbody") || table;
 	const row = document.createElement("tr");
 
 	row.innerHTML = `
-    <td>${new Date().toLocaleTimeString("bn-BD")}</td>
-    <td>${d.ip}</td>
-    <td>${d.city || "-"}, ${d.country_code || "--"}</td>
-    <td>Active</td>
-  `;
+        <td>${escapeHtml(new Date().toLocaleTimeString("bn-BD"))}</td>
+        <td>${escapeHtml(d.ip)}</td>
+        <td>${escapeHtml(d.city || "-")}, ${escapeHtml(d.country_code || "--")}</td>
+        <td>Active</td>
+    `;
 
-	const table = document.getElementById("activityLog");
-	table.prepend(row);
+	tbody.prepend(row);
 
-	if (table.children.length > 10) {
-		table.lastChild.remove();
+	// Max 10 rows
+	const rows = tbody.querySelectorAll("tr");
+	if (rows.length > 10) {
+		rows[rows.length - 1].remove();
 	}
 }
 
-// ================= TRAFFIC (FINAL) =================
+// ================= TRAFFIC (SIMULATION) =================
+let trafficInterval = null;
+
 function simulateTraffic() {
 	const el = document.getElementById("activeConnections");
 	const bar = document.getElementById("trafficBar");
@@ -1857,7 +1924,6 @@ function simulateTraffic() {
 	if (!el || !bar || !rpm || !threats) return;
 
 	let count = parseInt(el.textContent) || 0;
-
 	count = Math.max(0, count + Math.floor(Math.random() * 10) - 3);
 	el.textContent = count;
 
@@ -1871,65 +1937,147 @@ function simulateTraffic() {
 	}
 }
 
-// ================= PING =================
-function runPingTest() {
-	const el = document.getElementById("pingResult");
-	el.textContent = "Testing...";
-
-	const start = performance.now();
-
-	fetch("https://www.google.com/favicon.ico", { mode: "no-cors" })
-		.then(() => {
-			const latency = Math.floor(performance.now() - start);
-			el.textContent = latency + " ms";
-		})
-		.catch(() => {
-			el.textContent = "Failed";
-		});
+function startTrafficSimulation() {
+	if (trafficInterval) clearInterval(trafficInterval);
+	trafficInterval = setInterval(simulateTraffic, 2000);
 }
 
-// ================= DNS =================
-function checkDNS() {
+function stopTrafficSimulation() {
+	if (trafficInterval) {
+		clearInterval(trafficInterval);
+		trafficInterval = null;
+	}
+}
+
+// ================= PING (REAL) =================
+async function runPingTest() {
+	const el = document.getElementById("pingResult");
+	if (!el) return;
+
+	el.textContent = "Testing...";
+
+	const urls = [
+		"https://www.google.com/favicon.ico",
+		"https://cloudflare.com/favicon.ico",
+		"https://1.1.1.1/favicon.ico",
+	];
+
+	const url = urls[Math.floor(Math.random() * urls.length)];
+	const start = performance.now();
+
+	try {
+		await fetch(url, {
+			mode: "no-cors",
+			cache: "no-store",
+			method: "HEAD",
+		});
+		const latency = Math.floor(performance.now() - start);
+		el.textContent = `${latency} ms`;
+		el.className =
+			latency < 100 ? "text-green-400"
+			: latency < 300 ? "text-yellow-400"
+			: "text-red-400";
+	} catch {
+		el.textContent = "Failed";
+		el.className = "text-red-400";
+	}
+}
+
+// ================= DNS (REAL) =================
+async function checkDNS() {
 	const el = document.getElementById("dnsResult");
+	if (!el) return;
+
 	el.textContent = "Resolving...";
 
-	setTimeout(() => {
+	try {
+		// DNS over HTTPS (Cloudflare)
+		const res = await fetch(
+			"https://1.1.1.1/dns-query?name=google.com&type=A",
+			{
+				headers: { Accept: "application/dns-json" },
+			}
+		);
+
+		if (res.ok) {
+			const data = await res.json();
+			if (data.Answer && data.Answer.length > 0) {
+				el.textContent = `1.1.1.1 (Cloudflare) → ${data.Answer[0].data}`;
+				el.className = "text-green-400";
+			} else {
+				throw new Error("No DNS answer");
+			}
+		} else {
+			throw new Error("DNS query failed");
+		}
+	} catch {
+		// Fallback
 		const list = [
 			"8.8.8.8 (Google)",
 			"1.1.1.1 (Cloudflare)",
 			"9.9.9.9 (Quad9)",
 		];
-
-		el.textContent = list[Math.floor(Math.random() * list.length)];
-	}, 1000);
+		el.textContent =
+			list[Math.floor(Math.random() * list.length)] + " (fallback)";
+		el.className = "text-yellow-400";
+	}
 }
 
-// ================= SECURITY =================
-function checkSecurity() {
+// ================= SECURITY (REAL CHECK) =================
+async function checkSecurity() {
 	const el = document.getElementById("securityResult");
+	if (!el) return;
+
 	el.textContent = "Scanning...";
+	el.className = "";
 
-	setTimeout(() => {
-		const ok = Math.random() > 0.1;
+	try {
+		// Check HTTPS
+		const isHttps = window.location.protocol === "https:";
 
-		if (ok) {
-			el.textContent = "Clean";
+		// Check security headers via a simple fetch
+		const res = await fetch(window.location.href, { method: "HEAD" });
+		const csp = res.headers.get("content-security-policy");
+		const xFrame = res.headers.get("x-frame-options");
+
+		let score = 0;
+		if (isHttps) score += 40;
+		if (csp) score += 30;
+		if (xFrame) score += 30;
+
+		if (score >= 70) {
+			el.textContent = `Secure (${score}%)`;
 			el.className = "text-green-400";
+		} else if (score >= 40) {
+			el.textContent = `Moderate (${score}%)`;
+			el.className = "text-yellow-400";
 		} else {
-			el.textContent = "Suspicious";
+			el.textContent = `Weak (${score}%)`;
 			el.className = "text-red-400";
 		}
-	}, 1500);
+	} catch {
+		el.textContent = "Check failed";
+		el.className = "text-gray-400";
+	}
 }
 
 // ================= INIT =================
 window.addEventListener("DOMContentLoaded", () => {
-	document.getElementById("ipInput").addEventListener("keypress", (e) => {
-		if (e.key === "Enter") lookupIP();
-	});
+	const input = document.getElementById("ipInput");
+	if (input) {
+		input.addEventListener("keypress", (e) => {
+			if (e.key === "Enter") lookupIP();
+		});
+	}
 
+	// Auto-detect user IP
 	trackMyIP();
 
-	// 🔥 Live Traffic START
-	setInterval(simulateTraffic, 2000);
+	// Live Traffic
+	startTrafficSimulation();
+});
+
+// Cleanup on page unload
+window.addEventListener("beforeunload", () => {
+	stopTrafficSimulation();
 });
