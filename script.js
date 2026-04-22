@@ -1717,7 +1717,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	sensorsDetect();
 });
 
-// ipv6 test
 // ================= MAP =================
 const map = L.map("map", {
 	center: [20, 0],
@@ -1757,25 +1756,28 @@ async function fetchWithFallback(ip = "") {
 
 			data = await res.json();
 		} else {
-			const url = ip ? `https://ipwho.is/${ip}` : `https://ipwho.is/`;
+			// ✅ MODIFIED: Changed from ipwho.is to ipapi.co
+			const url =
+				ip ? `https://ipapi.co/${ip}/json/` : `https://ipapi.co/json/`;
 			const res = await fetch(url);
 			const raw = await res.json();
 
-			if (!raw.success) throw new Error(raw.message);
+			if (raw.error) throw new Error(raw.reason || "API error");
 
+			// ✅ MODIFIED: Mapped exactly to ipapi.co fields
 			data = {
 				ip: raw.ip,
-				country_name: raw.country,
+				country_name: raw.country_name,
 				country_code: raw.country_code,
 				city: raw.city,
 				region: raw.region,
 				latitude: raw.latitude,
 				longitude: raw.longitude,
-				timezone: raw.timezone?.id,
-				org: raw.connection?.isp,
-				asn: raw.connection?.asn ? "AS" + raw.connection.asn : null,
-				network: raw.connection?.route,
-				version: raw.type?.toUpperCase(),
+				timezone: raw.timezone,
+				org: raw.org,
+				asn: raw.asn,
+				network: raw.network,
+				version: raw.version,
 			};
 		}
 
@@ -1826,8 +1828,10 @@ async function lookupIP() {
 
 	if (!ip) return trackMyIP();
 
-	if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
-		showToast("Invalid IP");
+	// ✅ MODIFIED: Regex updated to support both IPv4 and IPv6
+	const isValidIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$|^[a-fA-F0-9:]+$/.test(ip);
+	if (!isValidIP) {
+		showToast("Invalid IP format");
 		return;
 	}
 
@@ -1883,11 +1887,11 @@ function addToLog(d) {
 	const row = document.createElement("tr");
 
 	row.innerHTML = `
-		<td>${new Date().toLocaleTimeString("bn-BD")}</td>
-		<td>${d.ip}</td>
-		<td>${d.city || "-"}, ${d.country_code || "--"}</td>
-		<td>Active</td>
-	`;
+    <td>${new Date().toLocaleTimeString("bn-BD")}</td>
+    <td>${d.ip}</td>
+    <td>${d.city || "-"}, ${d.country_code || "--"}</td>
+    <td>Active</td>
+  `;
 
 	const table = document.getElementById("activityLog");
 	table.prepend(row);

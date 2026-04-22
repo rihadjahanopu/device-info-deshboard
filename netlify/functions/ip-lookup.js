@@ -23,27 +23,12 @@ function httpsGet(url) {
 				});
 			}
 		);
-
 		req.setTimeout(7000, () => {
 			req.destroy();
 			reject(new Error("Timeout"));
 		});
-
 		req.on("error", reject);
 	});
-}
-
-// ─── Score system (BEST API select করবে) ─────────────────
-function scoreData(d) {
-	let score = 0;
-	if (d.ip) score += 2;
-	if (d.country_name) score += 3;
-	if (d.country_code) score += 2;
-	if (d.city) score += 2;
-	if (d.latitude && d.longitude) score += 2;
-	if (d.org) score += 1;
-	if (d.timezone) score += 1;
-	return score;
 }
 
 // ─── MAIN ─────────────────────────────
@@ -52,7 +37,6 @@ exports.handler = async (event) => {
 		event.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
 		event.headers["client-ip"] ||
 		"";
-
 	const queryIP = event.queryStringParameters?.ip;
 	const ip = queryIP || realIP;
 
@@ -65,81 +49,51 @@ exports.handler = async (event) => {
 		return { statusCode: 204, headers, body: "" };
 	}
 
-	const apis = [
-		{
-			name: "ipwho",
-			url:
-				ip ? `https://ipwho.is/${encodeURIComponent(ip)}` : `https://ipwho.is/`,
-			parse: (r) => {
-				if (r.success === false) throw new Error();
-				return {
-					ip: r.ip,
-					country_name: r.country,
-					country_code: r.country_code,
-					city: r.city,
-					region: r.region,
-					latitude: r.latitude,
-					longitude: r.longitude,
-					timezone: r.timezone?.id,
-					org: r.connection?.isp,
-				};
-			},
-		},
-		{
-			name: "ipapi",
-			url:
-				ip ?
-					`https://ipapi.co/${encodeURIComponent(ip)}/json/`
-				:	`https://ipapi.co/json/`,
-			parse: (r) => {
-				if (r.error) throw new Error();
-				return {
-					ip: r.ip,
-					country_name: r.country_name,
-					country_code: r.country_code,
-					city: r.city,
-					region: r.region,
-					latitude: r.latitude,
-					longitude: r.longitude,
-					timezone: r.timezone,
-					org: r.org,
-				};
-			},
-		},
-	];
+	const url =
+		ip ?
+			`https://ipapi.co/${encodeURIComponent(ip)}/json/`
+		:	`https://ipapi.co/json/`;
 
-	let bestData = null;
-	let bestScore = -1;
+	try {
+		const { status, body } = await httpsGet(url);
 
-	// ─── Auto select best API ─────────────────
-	for (const api of apis) {
-		try {
-			const { status, body } = await httpsGet(api.url);
-			if (status !== 200) continue;
+		// Handle API errors (e.g., rate limits or invalid IPs)
+		if (status !== 200 || body.error) {
+			return {
+				statusCode: status === 200 ? 400 : status,
+				headers,
+				body: JSON.stringify({
+					error: body.reason || "Failed to fetch data from ipapi.co",
+				}),
+			};
+		}
 
-			const data = api.parse(body);
-			const s = scoreData(data);
+		// Parse the required data
+		const data = {
+			ip: body.ip,
+			country_name: body.country_name,
+			country_code: body.country_code,
+			city: body.city,
+			region: body.region,
+			latitude: body.latitude,
+			longitude: body.longitude,
+			timezone: body.timezone,
+			org: body.org,
+			asn: body.asn,
+			network: body.network,
+			version: body.version,
+		};
 
-			console.log(api.name, "score:", s);
-
-			if (s > bestScore) {
-				bestScore = s;
-				bestData = data;
-			}
-		} catch {}
-	}
-
-	if (!bestData) {
+		return {
+			statusCode: 200,
+			headers,
+			body: JSON.stringify(data),
+		};
+	} catch (error) {
 		return {
 			statusCode: 500,
 			headers,
-			body: JSON.stringify({ error: "All APIs failed" }),
+			body: JSON.stringify({ error: "Network or Server Error" }),
 		};
 	}
-
-	return {
-		statusCode: 200,
-		headers,
-		body: JSON.stringify(bestData),
-	};
 };
