@@ -286,7 +286,7 @@ async function fetchIPInfo() {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), 5000);
 	try {
-		const res = await fetch("https://ipapi.co/json/", {
+		const res = await fetch("/.netlify/functions/ip-lookup", {
 			signal: controller.signal,
 		});
 		clearTimeout(timer);
