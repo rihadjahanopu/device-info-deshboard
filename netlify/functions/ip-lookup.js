@@ -1,6 +1,6 @@
 const https = require("https");
 
-// ─── HTTPS helper with timeout ─────────────────────────────
+// ─── HTTPS helper ─────────────────────────────
 function httpsGet(url) {
 	return new Promise((resolve, reject) => {
 		const req = https.get(
@@ -13,142 +13,133 @@ function httpsGet(url) {
 			},
 			(res) => {
 				let data = "";
-
-				res.on("data", (chunk) => (data += chunk));
-
+				res.on("data", (c) => (data += c));
 				res.on("end", () => {
 					try {
-						resolve({
-							status: res.statusCode,
-							body: JSON.parse(data),
-						});
-					} catch (e) {
+						resolve({ status: res.statusCode, body: JSON.parse(data) });
+					} catch {
 						reject(new Error("JSON parse error"));
 					}
 				});
 			}
 		);
 
-		// ✅ timeout protection
 		req.setTimeout(7000, () => {
 			req.destroy();
-			reject(new Error("Request timeout"));
+			reject(new Error("Timeout"));
 		});
 
 		req.on("error", reject);
 	});
 }
 
-// ─── MAIN HANDLER ─────────────────────────────
+// ─── Score system (BEST API select করবে) ─────────────────
+function scoreData(d) {
+	let score = 0;
+	if (d.ip) score += 2;
+	if (d.country_name) score += 3;
+	if (d.country_code) score += 2;
+	if (d.city) score += 2;
+	if (d.latitude && d.longitude) score += 2;
+	if (d.org) score += 1;
+	if (d.timezone) score += 1;
+	return score;
+}
+
+// ─── MAIN ─────────────────────────────
 exports.handler = async (event) => {
-	// ✅ REAL CLIENT IP (Netlify headers)
 	const realIP =
 		event.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
 		event.headers["client-ip"] ||
 		"";
 
-	// user input IP (optional)
 	const queryIP = event.queryStringParameters?.ip;
-
-	// priority: input > real IP
 	const ip = queryIP || realIP;
 
 	const headers = {
 		"Access-Control-Allow-Origin": "*",
-		"Access-Control-Allow-Headers": "Content-Type",
 		"Content-Type": "application/json",
 	};
 
-	// ✅ CORS preflight
 	if (event.httpMethod === "OPTIONS") {
 		return { statusCode: 204, headers, body: "" };
 	}
 
-	// ─── API fallback list ─────────────────────────────
 	const apis = [
 		{
+			name: "ipwho",
 			url:
 				ip ? `https://ipwho.is/${encodeURIComponent(ip)}` : `https://ipwho.is/`,
-			parse: (raw) => {
-				if (raw.success === false)
-					throw new Error(raw.message || "ipwho failed");
-
+			parse: (r) => {
+				if (r.success === false) throw new Error();
 				return {
-					ip: raw.ip,
-					country_name: raw.country,
-					country_code: raw.country_code,
-					city: raw.city,
-					region: raw.region,
-					latitude: raw.latitude,
-					longitude: raw.longitude,
-					timezone: raw.timezone?.id || raw.timezone,
-					org: raw.connection?.isp || raw.connection?.org,
-					asn: raw.connection?.asn ? "AS" + raw.connection.asn : null,
-					network: raw.connection?.route,
-					version: raw.type?.toUpperCase() || "IPv4",
+					ip: r.ip,
+					country_name: r.country,
+					country_code: r.country_code,
+					city: r.city,
+					region: r.region,
+					latitude: r.latitude,
+					longitude: r.longitude,
+					timezone: r.timezone?.id,
+					org: r.connection?.isp,
 				};
 			},
 		},
 		{
+			name: "ipapi",
 			url:
 				ip ?
 					`https://ipapi.co/${encodeURIComponent(ip)}/json/`
 				:	`https://ipapi.co/json/`,
-			parse: (raw) => {
-				if (raw.error) throw new Error(raw.reason || "ipapi failed");
-
+			parse: (r) => {
+				if (r.error) throw new Error();
 				return {
-					ip: raw.ip,
-					country_name: raw.country_name,
-					country_code: raw.country_code,
-					city: raw.city,
-					region: raw.region,
-					latitude: raw.latitude,
-					longitude: raw.longitude,
-					timezone: raw.timezone,
-					org: raw.org,
-					asn: raw.asn,
-					network: raw.network,
-					version: raw.version || "IPv4",
+					ip: r.ip,
+					country_name: r.country_name,
+					country_code: r.country_code,
+					city: r.city,
+					region: r.region,
+					latitude: r.latitude,
+					longitude: r.longitude,
+					timezone: r.timezone,
+					org: r.org,
 				};
 			},
 		},
 	];
 
-	let lastError = "";
+	let bestData = null;
+	let bestScore = -1;
 
-	// ─── Try APIs one by one ─────────────────────────────
+	// ─── Auto select best API ─────────────────
 	for (const api of apis) {
 		try {
-			console.log("Trying:", api.url);
-
 			const { status, body } = await httpsGet(api.url);
-
-			if (status !== 200) throw new Error("HTTP " + status);
+			if (status !== 200) continue;
 
 			const data = api.parse(body);
+			const s = scoreData(data);
 
-			if (!data.ip) throw new Error("Invalid response");
+			console.log(api.name, "score:", s);
 
-			return {
-				statusCode: 200,
-				headers,
-				body: JSON.stringify(data),
-			};
-		} catch (err) {
-			lastError = err.message;
-			continue;
-		}
+			if (s > bestScore) {
+				bestScore = s;
+				bestData = data;
+			}
+		} catch {}
 	}
 
-	// ─── All failed ─────────────────────────────
+	if (!bestData) {
+		return {
+			statusCode: 500,
+			headers,
+			body: JSON.stringify({ error: "All APIs failed" }),
+		};
+	}
+
 	return {
-		statusCode: 502,
+		statusCode: 200,
 		headers,
-		body: JSON.stringify({
-			error: "All APIs failed",
-			details: lastError,
-			ipUsed: ip || "none",
-		}),
+		body: JSON.stringify(bestData),
 	};
 };
