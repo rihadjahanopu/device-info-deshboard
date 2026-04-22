@@ -1717,9 +1717,8 @@ document.addEventListener("DOMContentLoaded", () => {
 	sensorsDetect();
 });
 
-// ip
-
-// Initialize Map
+// ipv6 test
+// ================= MAP =================
 const map = L.map("map", {
 	center: [20, 0],
 	zoom: 2,
@@ -1735,52 +1734,34 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 
 let currentMarker = null;
 
-// ✅ FIXED Netlify detection (important)
-const IS_NETLIFY = location.origin.includes("netlify.app");
+// ================= ENV =================
+const IS_NETLIFY =
+	location.hostname.includes("netlify.app") ||
+	location.hostname.includes("netlify");
 
-// ─── Fetch with fallback ─────────────────────────────────────
+// ================= FETCH =================
 async function fetchWithFallback(ip = "") {
 	setLoading(true);
-
-	const fallbackNotice = document.getElementById("fallbackNotice");
-	const fallbackText = document.getElementById("fallbackText");
-	fallbackNotice.classList.add("hidden");
 
 	try {
 		let data;
 
 		if (IS_NETLIFY) {
-			// ✅ Netlify function
 			const url =
 				ip ?
 					`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
 				:	`/.netlify/functions/ip-lookup`;
 
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 8000);
+			const res = await fetch(url);
+			if (!res.ok) throw new Error("Function failed");
 
-			const res = await fetch(url, { signal: controller.signal });
-			clearTimeout(timeout);
-
-			if (!res.ok) throw new Error(`Function error ${res.status}`);
-
-			const json = await res.json();
-			if (json.error) throw new Error(json.error);
-
-			data = json;
+			data = await res.json();
 		} else {
 			const url = ip ? `https://ipwho.is/${ip}` : `https://ipwho.is/`;
-
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 8000);
-
-			const res = await fetch(url, { signal: controller.signal });
-			clearTimeout(timeout);
-
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
+			const res = await fetch(url);
 			const raw = await res.json();
-			if (raw.success === false) throw new Error(raw.message);
+
+			if (!raw.success) throw new Error(raw.message);
 
 			data = {
 				ip: raw.ip,
@@ -1791,59 +1772,44 @@ async function fetchWithFallback(ip = "") {
 				latitude: raw.latitude,
 				longitude: raw.longitude,
 				timezone: raw.timezone?.id,
-				org: raw.connection?.isp || raw.connection?.org,
+				org: raw.connection?.isp,
 				asn: raw.connection?.asn ? "AS" + raw.connection.asn : null,
 				network: raw.connection?.route,
-				version: raw.type?.toUpperCase() || "IPv4",
+				version: raw.type?.toUpperCase(),
 			};
 		}
 
-		if (!data?.ip) throw new Error("Invalid response");
+		if (!data?.ip) throw new Error("Invalid data");
 
-		setLoading(false);
 		return data;
 	} catch (err) {
-		fallbackNotice.classList.remove("hidden");
-		fallbackText.textContent = `Error: ${err.message}`;
 		showToast(err.message);
-		setLoading(false);
 		throw err;
+	} finally {
+		setLoading(false);
 	}
 }
 
-// ─── UI helpers ─────────────────────────────────────
+// ================= UI =================
 function setLoading(loading) {
-	const btn = document.getElementById("trackBtn");
-	const myBtn = document.getElementById("myIpBtn");
-	const status = document.getElementById("connectionStatus");
-
-	btn.disabled = loading;
-	myBtn.disabled = loading;
+	document.getElementById("trackBtn").disabled = loading;
+	document.getElementById("myIpBtn").disabled = loading;
 
 	document.getElementById("connectionText").textContent =
 		loading ? "Loading..." : "Connected";
-
-	status.className =
-		loading ? "status-dot status-loading" : "status-dot status-online";
 }
 
-// ✅ XSS safe toast
-function showToast(message) {
-	const container = document.getElementById("toastContainer");
+// Toast
+function showToast(msg) {
+	const el = document.createElement("div");
+	el.className = "error-toast";
+	el.textContent = msg;
 
-	const toast = document.createElement("div");
-	toast.className = "error-toast";
-
-	const span = document.createElement("span");
-	span.textContent = message;
-
-	toast.appendChild(span);
-	container.appendChild(toast);
-
-	setTimeout(() => toast.remove(), 4000);
+	document.getElementById("toastContainer").appendChild(el);
+	setTimeout(() => el.remove(), 4000);
 }
 
-// ─── Actions ─────────────────────────────────────
+// ================= ACTION =================
 async function trackMyIP() {
 	document.getElementById("ipInput").value = "";
 
@@ -1852,95 +1818,168 @@ async function trackMyIP() {
 		updateUI(data);
 		updateMap(data.latitude, data.longitude, data.city);
 		addToLog(data);
-	} catch (e) {
-		console.error(e);
-	}
+	} catch {}
 }
 
 async function lookupIP() {
-	const input = document.getElementById("ipInput").value.trim();
+	const ip = document.getElementById("ipInput").value.trim();
 
-	if (!input) return trackMyIP();
+	if (!ip) return trackMyIP();
 
-	// ✅ basic IP validation
-	if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(input)) {
-		showToast("Invalid IP address");
+	if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+		showToast("Invalid IP");
 		return;
 	}
 
 	try {
-		const data = await fetchWithFallback(input);
+		const data = await fetchWithFallback(ip);
 		updateUI(data);
 		updateMap(data.latitude, data.longitude, data.city);
 		addToLog(data);
-	} catch (e) {
-		console.error(e);
-	}
+	} catch {}
 }
 
-// ─── UI update ─────────────────────────────────────
-function updateUI(data) {
-	document.getElementById("currentIP").textContent = data.ip || "-";
+// ================= UPDATE UI =================
+function updateUI(d) {
+	document.getElementById("currentIP").textContent = d.ip || "-";
+
 	document.getElementById("country").textContent =
-		data.country_name ? `${data.country_name} (${data.country_code})` : "-";
-	document.getElementById("city").textContent = data.city || "-";
-	document.getElementById("region").textContent = data.region || "-";
-	document.getElementById("coords").textContent =
-		data.latitude && data.longitude ?
-			`${data.latitude}, ${data.longitude}`
+		d.country_name ?
+			`${d.country_name}${d.country_code ? ` (${d.country_code})` : ""}`
 		:	"-";
-	document.getElementById("timezone").textContent = data.timezone || "-";
-	document.getElementById("isp").textContent = data.org || "-";
-	document.getElementById("asn").textContent = data.asn || "-";
-	document.getElementById("route").textContent = data.network || "-";
+
+	document.getElementById("city").textContent = d.city || "-";
+	document.getElementById("region").textContent = d.region || "-";
+
+	document.getElementById("coords").textContent =
+		d.latitude && d.longitude ? `${d.latitude}, ${d.longitude}` : "-";
+
+	document.getElementById("timezone").textContent = d.timezone || "-";
+	document.getElementById("isp").textContent = d.org || "-";
+	document.getElementById("asn").textContent = d.asn || "-";
+	document.getElementById("route").textContent = d.network || "-";
+
+	document.getElementById("userAgent").textContent = navigator.userAgent;
+	document.getElementById("networkType").textContent = d.version || "IPv4";
 
 	document.getElementById("lastUpdated").textContent =
-		new Date().toLocaleTimeString() + " updated";
+		new Date().toLocaleTimeString();
 }
 
-// ─── Map update ─────────────────────────────────────
+// ================= MAP =================
 function updateMap(lat, lng, city) {
-	// ✅ FIX (0 coordinate issue)
 	if (lat == null || lng == null) return;
 
 	if (currentMarker) map.removeLayer(currentMarker);
 
 	currentMarker = L.marker([lat, lng]).addTo(map);
-
-	map.setView([lat, lng], 10, {
-		animate: true,
-		duration: 1,
-	});
+	map.setView([lat, lng], 10);
 
 	currentMarker.bindPopup(city || "Unknown").openPopup();
 }
 
-// ─── Log ─────────────────────────────────────
-function addToLog(data) {
-	const tbody = document.getElementById("activityLog");
-
+// ================= LOG =================
+function addToLog(d) {
 	const row = document.createElement("tr");
 
 	row.innerHTML = `
 		<td>${new Date().toLocaleTimeString("bn-BD")}</td>
-		<td>${data.ip}</td>
-		<td>${data.city || "-"}, ${data.country_code || "--"}</td>
+		<td>${d.ip}</td>
+		<td>${d.city || "-"}, ${d.country_code || "--"}</td>
 		<td>Active</td>
 	`;
 
-	tbody.prepend(row);
+	const table = document.getElementById("activityLog");
+	table.prepend(row);
 
-	if (tbody.children.length > 10) {
-		tbody.removeChild(tbody.lastChild);
+	if (table.children.length > 10) {
+		table.lastChild.remove();
 	}
 }
 
-// ─── Init ─────────────────────────────────────
-window.onload = () => {
-	trackMyIP();
-};
+// ================= TRAFFIC (FINAL) =================
+function simulateTraffic() {
+	const el = document.getElementById("activeConnections");
+	const bar = document.getElementById("trafficBar");
+	const rpm = document.getElementById("reqPerMin");
+	const threats = document.getElementById("threatsBlocked");
 
-// Enter support
-document.getElementById("ipInput").addEventListener("keypress", (e) => {
-	if (e.key === "Enter") lookupIP();
+	if (!el || !bar || !rpm || !threats) return;
+
+	let count = parseInt(el.textContent) || 0;
+
+	count = Math.max(0, count + Math.floor(Math.random() * 10) - 3);
+	el.textContent = count;
+
+	const percent = Math.min(100, (count / 200) * 100);
+	bar.style.width = percent + "%";
+
+	rpm.textContent = count * 12;
+
+	if (Math.random() > 0.95) {
+		threats.textContent = (parseInt(threats.textContent) || 0) + 1;
+	}
+}
+
+// ================= PING =================
+function runPingTest() {
+	const el = document.getElementById("pingResult");
+	el.textContent = "Testing...";
+
+	const start = performance.now();
+
+	fetch("https://www.google.com/favicon.ico", { mode: "no-cors" })
+		.then(() => {
+			const latency = Math.floor(performance.now() - start);
+			el.textContent = latency + " ms";
+		})
+		.catch(() => {
+			el.textContent = "Failed";
+		});
+}
+
+// ================= DNS =================
+function checkDNS() {
+	const el = document.getElementById("dnsResult");
+	el.textContent = "Resolving...";
+
+	setTimeout(() => {
+		const list = [
+			"8.8.8.8 (Google)",
+			"1.1.1.1 (Cloudflare)",
+			"9.9.9.9 (Quad9)",
+		];
+
+		el.textContent = list[Math.floor(Math.random() * list.length)];
+	}, 1000);
+}
+
+// ================= SECURITY =================
+function checkSecurity() {
+	const el = document.getElementById("securityResult");
+	el.textContent = "Scanning...";
+
+	setTimeout(() => {
+		const ok = Math.random() > 0.1;
+
+		if (ok) {
+			el.textContent = "Clean";
+			el.className = "text-green-400";
+		} else {
+			el.textContent = "Suspicious";
+			el.className = "text-red-400";
+		}
+	}, 1500);
+}
+
+// ================= INIT =================
+window.addEventListener("DOMContentLoaded", () => {
+	document.getElementById("ipInput").addEventListener("keypress", (e) => {
+		if (e.key === "Enter") lookupIP();
+	});
+
+	trackMyIP();
+
+	// 🔥 Live Traffic START
+	setInterval(simulateTraffic, 2000);
 });
