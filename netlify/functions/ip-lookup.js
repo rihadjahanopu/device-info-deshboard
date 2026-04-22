@@ -1,14 +1,8 @@
 const https = require("https");
 
-exports.handler = async (event) => {
-	const ip = event.queryStringParameters?.ip || "";
-	// ipapi.co ইউআরএল ফরম্যাট
-	const url =
-		ip ?
-			`https://ipapi.co/${encodeURIComponent(ip)}/json/`
-		:	`https://ipapi.co/json/`;
-
-	return new Promise((resolve) => {
+// ─── HTTPS helper with timeout ─────────────────────────────
+function httpsGet(url) {
+	return new Promise((resolve, reject) => {
 		const req = https.get(
 			url,
 			{
@@ -19,51 +13,142 @@ exports.handler = async (event) => {
 			},
 			(res) => {
 				let data = "";
+
 				res.on("data", (chunk) => (data += chunk));
+
 				res.on("end", () => {
 					try {
-						const body = JSON.parse(data);
-						// যদি API এরর দেয় (যেমন: Rate Limit)
-						if (body.error) {
-							resolve({
-								statusCode: 400,
-								headers: { "Access-Control-Allow-Origin": "*" },
-								body: JSON.stringify({ error: body.reason || "API Error" }),
-							});
-						} else {
-							resolve({
-								statusCode: 200,
-								headers: {
-									"Access-Control-Allow-Origin": "*",
-									"Content-Type": "application/json",
-								},
-								body: JSON.stringify(body),
-							});
-						}
-					} catch (e) {
 						resolve({
-							statusCode: 500,
-							body: JSON.stringify({ error: "JSON Parse Error" }),
+							status: res.statusCode,
+							body: JSON.parse(data),
 						});
+					} catch (e) {
+						reject(new Error("JSON parse error"));
 					}
 				});
 			}
 		);
 
-		req.on("error", (e) => {
-			resolve({
-				statusCode: 500,
-				body: JSON.stringify({ error: e.message }),
-			});
+		// ✅ timeout protection
+		req.setTimeout(7000, () => {
+			req.destroy();
+			reject(new Error("Request timeout"));
 		});
 
-		// ৫ সেকেন্ড টাইমআউট
-		req.setTimeout(5000, () => {
-			req.destroy();
-			resolve({
-				statusCode: 504,
-				body: JSON.stringify({ error: "API Timeout" }),
-			});
-		});
+		req.on("error", reject);
 	});
+}
+
+// ─── MAIN HANDLER ─────────────────────────────
+exports.handler = async (event) => {
+	// ✅ REAL CLIENT IP (Netlify headers)
+	const realIP =
+		event.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+		event.headers["client-ip"] ||
+		"";
+
+	// user input IP (optional)
+	const queryIP = event.queryStringParameters?.ip;
+
+	// priority: input > real IP
+	const ip = queryIP || realIP;
+
+	const headers = {
+		"Access-Control-Allow-Origin": "*",
+		"Access-Control-Allow-Headers": "Content-Type",
+		"Content-Type": "application/json",
+	};
+
+	// ✅ CORS preflight
+	if (event.httpMethod === "OPTIONS") {
+		return { statusCode: 204, headers, body: "" };
+	}
+
+	// ─── API fallback list ─────────────────────────────
+	const apis = [
+		{
+			url:
+				ip ? `https://ipwho.is/${encodeURIComponent(ip)}` : `https://ipwho.is/`,
+			parse: (raw) => {
+				if (raw.success === false)
+					throw new Error(raw.message || "ipwho failed");
+
+				return {
+					ip: raw.ip,
+					country_name: raw.country,
+					country_code: raw.country_code,
+					city: raw.city,
+					region: raw.region,
+					latitude: raw.latitude,
+					longitude: raw.longitude,
+					timezone: raw.timezone?.id || raw.timezone,
+					org: raw.connection?.isp || raw.connection?.org,
+					asn: raw.connection?.asn ? "AS" + raw.connection.asn : null,
+					network: raw.connection?.route,
+					version: raw.type?.toUpperCase() || "IPv4",
+				};
+			},
+		},
+		{
+			url:
+				ip ?
+					`https://ipapi.co/${encodeURIComponent(ip)}/json/`
+				:	`https://ipapi.co/json/`,
+			parse: (raw) => {
+				if (raw.error) throw new Error(raw.reason || "ipapi failed");
+
+				return {
+					ip: raw.ip,
+					country_name: raw.country_name,
+					country_code: raw.country_code,
+					city: raw.city,
+					region: raw.region,
+					latitude: raw.latitude,
+					longitude: raw.longitude,
+					timezone: raw.timezone,
+					org: raw.org,
+					asn: raw.asn,
+					network: raw.network,
+					version: raw.version || "IPv4",
+				};
+			},
+		},
+	];
+
+	let lastError = "";
+
+	// ─── Try APIs one by one ─────────────────────────────
+	for (const api of apis) {
+		try {
+			console.log("Trying:", api.url);
+
+			const { status, body } = await httpsGet(api.url);
+
+			if (status !== 200) throw new Error("HTTP " + status);
+
+			const data = api.parse(body);
+
+			if (!data.ip) throw new Error("Invalid response");
+
+			return {
+				statusCode: 200,
+				headers,
+				body: JSON.stringify(data),
+			};
+		} catch (err) {
+			lastError = err.message;
+			continue;
+		}
+	}
+
+	// ─── All failed ─────────────────────────────
+	return {
+		statusCode: 502,
+		headers,
+		body: JSON.stringify({
+			error: "All APIs failed",
+			details: lastError,
+			ipUsed: ip || "none",
+		}),
+	};
 };

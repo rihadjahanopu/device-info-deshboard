@@ -286,7 +286,7 @@ async function fetchIPInfo() {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), 5000);
 	try {
-		const res = await fetch("/.netlify/functions/ip-lookup", {
+		const res = await fetch("https://ipapi.co/json/", {
 			signal: controller.signal,
 		});
 		clearTimeout(timer);
@@ -1717,7 +1717,9 @@ document.addEventListener("DOMContentLoaded", () => {
 	sensorsDetect();
 });
 
-// ================= MAP =================
+// ip
+
+// Initialize Map
 const map = L.map("map", {
 	center: [20, 0],
 	zoom: 2,
@@ -1727,349 +1729,218 @@ const map = L.map("map", {
 
 L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
 	maxZoom: 19,
-	attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
 }).addTo(map);
 
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
 let currentMarker = null;
 
-// ================= UTILITY =================
-function escapeHtml(str) {
-	if (str == null) return "";
-	return String(str)
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
-}
+// ✅ FIXED Netlify detection (important)
+const IS_NETLIFY = location.origin.includes("netlify.app");
 
-function isValidIP(ip) {
-	if (!ip || ip === "") return true;
-	const ipv4 =
-		/^(?:(?:25[0-5]|2[0-4]\d|1?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|1?\d\d?)$/;
-	const ipv6 =
-		/^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}$|^:(?::[0-9a-fA-F]{1,4}){1,7}$|^::$|^::1$/;
-	return ipv4.test(ip) || ipv6.test(ip);
-}
-
-// ================= FETCH LOGIC =================
+// ─── Fetch with fallback ─────────────────────────────────────
 async function fetchWithFallback(ip = "") {
 	setLoading(true);
 
+	const fallbackNotice = document.getElementById("fallbackNotice");
+	const fallbackText = document.getElementById("fallbackText");
+	fallbackNotice.classList.add("hidden");
+
 	try {
-		// নেটলিফাই ফাংশন কল
-		const url =
-			ip ?
-				`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
-			:	`/.netlify/functions/ip-lookup`;
+		let data;
 
-		const res = await fetch(url);
-		const data = await res.json();
+		if (IS_NETLIFY) {
+			// ✅ Netlify function
+			const url =
+				ip ?
+					`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
+				:	`/.netlify/functions/ip-lookup`;
 
-		if (!res.ok || data.error) {
-			throw new Error(data.error || "Failed to fetch data");
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), 8000);
+
+			const res = await fetch(url, { signal: controller.signal });
+			clearTimeout(timeout);
+
+			if (!res.ok) throw new Error(`Function error ${res.status}`);
+
+			const json = await res.json();
+			if (json.error) throw new Error(json.error);
+
+			data = json;
+		} else {
+			const url = ip ? `https://ipwho.is/${ip}` : `https://ipwho.is/`;
+
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), 8000);
+
+			const res = await fetch(url, { signal: controller.signal });
+			clearTimeout(timeout);
+
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+			const raw = await res.json();
+			if (raw.success === false) throw new Error(raw.message);
+
+			data = {
+				ip: raw.ip,
+				country_name: raw.country,
+				country_code: raw.country_code,
+				city: raw.city,
+				region: raw.region,
+				latitude: raw.latitude,
+				longitude: raw.longitude,
+				timezone: raw.timezone?.id,
+				org: raw.connection?.isp || raw.connection?.org,
+				asn: raw.connection?.asn ? "AS" + raw.connection.asn : null,
+				network: raw.connection?.route,
+				version: raw.type?.toUpperCase() || "IPv4",
+			};
 		}
 
-		// ipapi.co এর ডেটা ফরম্যাট অনুযায়ী ম্যাপিং
-		return {
-			ip: data.ip,
-			country_name: data.country_name,
-			country_code: data.country_code,
-			city: data.city,
-			region: data.region,
-			latitude: data.latitude,
-			longitude: data.longitude,
-			timezone: data.timezone,
-			org: data.org,
-			asn: data.asn,
-			network: data.network,
-			version: data.version, // IPv4 or IPv6
-		};
-	} catch (err) {
-		showToast(err.message);
-		throw err;
-	} finally {
+		if (!data?.ip) throw new Error("Invalid response");
+
 		setLoading(false);
+		return data;
+	} catch (err) {
+		fallbackNotice.classList.remove("hidden");
+		fallbackText.textContent = `Error: ${err.message}`;
+		showToast(err.message);
+		setLoading(false);
+		throw err;
 	}
 }
 
-// ================= LOOKUP ACTION =================
-async function lookupIP() {
-	const input = document.getElementById("ipInput");
-	const ip = input.value.trim();
+// ─── UI helpers ─────────────────────────────────────
+function setLoading(loading) {
+	const btn = document.getElementById("trackBtn");
+	const myBtn = document.getElementById("myIpBtn");
+	const status = document.getElementById("connectionStatus");
 
-	if (!ip) return trackMyIP();
+	btn.disabled = loading;
+	myBtn.disabled = loading;
 
-	// ✅ IPv4 এবং IPv6 উভয়ই সাপোর্ট করার জন্য Regex
-	const isValidIP =
-		/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(ip) || // IPv4
-		/^(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}$/.test(ip) || // IPv6 Full
-		/^[a-fA-F0-9:]+:+[a-fA-F0-9:]+$/.test(ip); // IPv6 Compressed
+	document.getElementById("connectionText").textContent =
+		loading ? "Loading..." : "Connected";
 
-	if (!isValidIP) {
-		showToast("Invalid IP format");
-		return;
-	}
+	status.className =
+		loading ? "status-dot status-loading" : "status-dot status-online";
+}
+
+// ✅ XSS safe toast
+function showToast(message) {
+	const container = document.getElementById("toastContainer");
+
+	const toast = document.createElement("div");
+	toast.className = "error-toast";
+
+	const span = document.createElement("span");
+	span.textContent = message;
+
+	toast.appendChild(span);
+	container.appendChild(toast);
+
+	setTimeout(() => toast.remove(), 4000);
+}
+
+// ─── Actions ─────────────────────────────────────
+async function trackMyIP() {
+	document.getElementById("ipInput").value = "";
 
 	try {
-		const data = await fetchWithFallback(ip);
+		const data = await fetchWithFallback();
 		updateUI(data);
 		updateMap(data.latitude, data.longitude, data.city);
 		addToLog(data);
 	} catch (e) {
-		console.error("Lookup failed:", e);
+		console.error(e);
 	}
 }
 
-// ================= UI UPDATES =================
-function updateUI(d) {
-	document.getElementById("currentIP").textContent = d.ip || "-";
-	document.getElementById("country").textContent =
-		d.country_name ? `${d.country_name} (${d.country_code})` : "-";
-	document.getElementById("city").textContent = d.city || "-";
-	document.getElementById("region").textContent = d.region || "-";
-	document.getElementById("coords").textContent =
-		d.latitude && d.longitude ? `${d.latitude}, ${d.longitude}` : "-";
-	document.getElementById("timezone").textContent = d.timezone || "-";
-	document.getElementById("isp").textContent = d.org || "-";
-	document.getElementById("asn").textContent = d.asn || "-";
-	document.getElementById("route").textContent = d.network || "-";
-	document.getElementById("networkType").textContent = d.version || "Unknown";
-	document.getElementById("lastUpdated").textContent =
-		new Date().toLocaleTimeString();
-}
+async function lookupIP() {
+	const input = document.getElementById("ipInput").value.trim();
 
-// setLoading এবং showToast ফাংশনগুলো আপনার আগের কোডেই ঠিক আছে।
+	if (!input) return trackMyIP();
 
-function setLoading(loading) {
-	const btn = document.getElementById("trackBtn");
-	if (btn) btn.disabled = loading;
-
-	const connText = document.getElementById("connectionText");
-	if (connText) connText.textContent = loading ? "Loading..." : "Connected";
-}
-
-function showToast(msg) {
-	const container = document.getElementById("toastContainer");
-	if (!container) {
-		console.error("Toast container missing:", msg);
+	// ✅ basic IP validation
+	if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(input)) {
+		showToast("Invalid IP address");
 		return;
 	}
 
-	const el = document.createElement("div");
-	el.className = "error-toast";
-	el.textContent = msg;
-	container.appendChild(el);
-
-	setTimeout(() => {
-		if (el.parentNode) el.remove();
-	}, 4000);
+	try {
+		const data = await fetchWithFallback(input);
+		updateUI(data);
+		updateMap(data.latitude, data.longitude, data.city);
+		addToLog(data);
+	} catch (e) {
+		console.error(e);
+	}
 }
 
-// ================= MAP =================
+// ─── UI update ─────────────────────────────────────
+function updateUI(data) {
+	document.getElementById("currentIP").textContent = data.ip || "-";
+	document.getElementById("country").textContent =
+		data.country_name ? `${data.country_name} (${data.country_code})` : "-";
+	document.getElementById("city").textContent = data.city || "-";
+	document.getElementById("region").textContent = data.region || "-";
+	document.getElementById("coords").textContent =
+		data.latitude && data.longitude ?
+			`${data.latitude}, ${data.longitude}`
+		:	"-";
+	document.getElementById("timezone").textContent = data.timezone || "-";
+	document.getElementById("isp").textContent = data.org || "-";
+	document.getElementById("asn").textContent = data.asn || "-";
+	document.getElementById("route").textContent = data.network || "-";
+
+	document.getElementById("lastUpdated").textContent =
+		new Date().toLocaleTimeString() + " updated";
+}
+
+// ─── Map update ─────────────────────────────────────
 function updateMap(lat, lng, city) {
+	// ✅ FIX (0 coordinate issue)
 	if (lat == null || lng == null) return;
 
 	if (currentMarker) map.removeLayer(currentMarker);
 
 	currentMarker = L.marker([lat, lng]).addTo(map);
-	map.setView([lat, lng], 10);
 
-	currentMarker.bindPopup(escapeHtml(city) || "Unknown").openPopup();
+	map.setView([lat, lng], 10, {
+		animate: true,
+		duration: 1,
+	});
+
+	currentMarker.bindPopup(city || "Unknown").openPopup();
 }
 
-// ================= LOG =================
-function addToLog(d) {
-	const table = document.getElementById("activityLog");
-	if (!table) return;
+// ─── Log ─────────────────────────────────────
+function addToLog(data) {
+	const tbody = document.getElementById("activityLog");
 
-	const tbody = table.querySelector("tbody") || table;
 	const row = document.createElement("tr");
 
 	row.innerHTML = `
-        <td>${escapeHtml(new Date().toLocaleTimeString("bn-BD"))}</td>
-        <td>${escapeHtml(d.ip)}</td>
-        <td>${escapeHtml(d.city || "-")}, ${escapeHtml(d.country_code || "--")}</td>
-        <td>Active</td>
-    `;
+		<td>${new Date().toLocaleTimeString("bn-BD")}</td>
+		<td>${data.ip}</td>
+		<td>${data.city || "-"}, ${data.country_code || "--"}</td>
+		<td>Active</td>
+	`;
 
 	tbody.prepend(row);
 
-	// Max 10 rows
-	const rows = tbody.querySelectorAll("tr");
-	if (rows.length > 10) {
-		rows[rows.length - 1].remove();
+	if (tbody.children.length > 10) {
+		tbody.removeChild(tbody.lastChild);
 	}
 }
 
-// ================= TRAFFIC (SIMULATION) =================
-let trafficInterval = null;
-
-function simulateTraffic() {
-	const el = document.getElementById("activeConnections");
-	const bar = document.getElementById("trafficBar");
-	const rpm = document.getElementById("reqPerMin");
-	const threats = document.getElementById("threatsBlocked");
-
-	if (!el || !bar || !rpm || !threats) return;
-
-	let count = parseInt(el.textContent) || 0;
-	count = Math.max(0, count + Math.floor(Math.random() * 10) - 3);
-	el.textContent = count;
-
-	const percent = Math.min(100, (count / 200) * 100);
-	bar.style.width = percent + "%";
-
-	rpm.textContent = count * 12;
-
-	if (Math.random() > 0.95) {
-		threats.textContent = (parseInt(threats.textContent) || 0) + 1;
-	}
-}
-
-function startTrafficSimulation() {
-	if (trafficInterval) clearInterval(trafficInterval);
-	trafficInterval = setInterval(simulateTraffic, 2000);
-}
-
-function stopTrafficSimulation() {
-	if (trafficInterval) {
-		clearInterval(trafficInterval);
-		trafficInterval = null;
-	}
-}
-
-// ================= PING (REAL) =================
-async function runPingTest() {
-	const el = document.getElementById("pingResult");
-	if (!el) return;
-
-	el.textContent = "Testing...";
-
-	const urls = [
-		"https://www.google.com/favicon.ico",
-		"https://cloudflare.com/favicon.ico",
-		"https://1.1.1.1/favicon.ico",
-	];
-
-	const url = urls[Math.floor(Math.random() * urls.length)];
-	const start = performance.now();
-
-	try {
-		await fetch(url, {
-			mode: "no-cors",
-			cache: "no-store",
-			method: "HEAD",
-		});
-		const latency = Math.floor(performance.now() - start);
-		el.textContent = `${latency} ms`;
-		el.className =
-			latency < 100 ? "text-green-400"
-			: latency < 300 ? "text-yellow-400"
-			: "text-red-400";
-	} catch {
-		el.textContent = "Failed";
-		el.className = "text-red-400";
-	}
-}
-
-// ================= DNS (REAL) =================
-async function checkDNS() {
-	const el = document.getElementById("dnsResult");
-	if (!el) return;
-
-	el.textContent = "Resolving...";
-
-	try {
-		// DNS over HTTPS (Cloudflare)
-		const res = await fetch(
-			"https://1.1.1.1/dns-query?name=google.com&type=A",
-			{
-				headers: { Accept: "application/dns-json" },
-			}
-		);
-
-		if (res.ok) {
-			const data = await res.json();
-			if (data.Answer && data.Answer.length > 0) {
-				el.textContent = `1.1.1.1 (Cloudflare) → ${data.Answer[0].data}`;
-				el.className = "text-green-400";
-			} else {
-				throw new Error("No DNS answer");
-			}
-		} else {
-			throw new Error("DNS query failed");
-		}
-	} catch {
-		// Fallback
-		const list = [
-			"8.8.8.8 (Google)",
-			"1.1.1.1 (Cloudflare)",
-			"9.9.9.9 (Quad9)",
-		];
-		el.textContent =
-			list[Math.floor(Math.random() * list.length)] + " (fallback)";
-		el.className = "text-yellow-400";
-	}
-}
-
-// ================= SECURITY (REAL CHECK) =================
-async function checkSecurity() {
-	const el = document.getElementById("securityResult");
-	if (!el) return;
-
-	el.textContent = "Scanning...";
-	el.className = "";
-
-	try {
-		// Check HTTPS
-		const isHttps = window.location.protocol === "https:";
-
-		// Check security headers via a simple fetch
-		const res = await fetch(window.location.href, { method: "HEAD" });
-		const csp = res.headers.get("content-security-policy");
-		const xFrame = res.headers.get("x-frame-options");
-
-		let score = 0;
-		if (isHttps) score += 40;
-		if (csp) score += 30;
-		if (xFrame) score += 30;
-
-		if (score >= 70) {
-			el.textContent = `Secure (${score}%)`;
-			el.className = "text-green-400";
-		} else if (score >= 40) {
-			el.textContent = `Moderate (${score}%)`;
-			el.className = "text-yellow-400";
-		} else {
-			el.textContent = `Weak (${score}%)`;
-			el.className = "text-red-400";
-		}
-	} catch {
-		el.textContent = "Check failed";
-		el.className = "text-gray-400";
-	}
-}
-
-// ================= INIT =================
-window.addEventListener("DOMContentLoaded", () => {
-	const input = document.getElementById("ipInput");
-	if (input) {
-		input.addEventListener("keypress", (e) => {
-			if (e.key === "Enter") lookupIP();
-		});
-	}
-
-	// Auto-detect user IP
+// ─── Init ─────────────────────────────────────
+window.onload = () => {
 	trackMyIP();
+};
 
-	// Live Traffic
-	startTrafficSimulation();
-});
-
-// Cleanup on page unload
-window.addEventListener("beforeunload", () => {
-	stopTrafficSimulation();
+// Enter support
+document.getElementById("ipInput").addEventListener("keypress", (e) => {
+	if (e.key === "Enter") lookupIP();
 });
