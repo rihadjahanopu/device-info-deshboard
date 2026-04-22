@@ -1754,47 +1754,61 @@ function isValidIP(ip) {
 	return ipv4.test(ip) || ipv6.test(ip);
 }
 
-// ================= FETCH =================
+// ================= FETCH LOGIC =================
 async function fetchWithFallback(ip = "") {
 	setLoading(true);
+
 	try {
+		// নেটলিফাই ফাংশন কল
 		const url =
 			ip ?
 				`/.netlify/functions/ip-lookup?ip=${encodeURIComponent(ip)}`
 			:	`/.netlify/functions/ip-lookup`;
 
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-		const res = await fetch(url, { signal: controller.signal });
-		clearTimeout(timeoutId);
-
-		if (!res.ok) throw new Error(`Network error: ${res.status}`);
-
+		const res = await fetch(url);
 		const data = await res.json();
-		if (data.error) throw new Error(data.error);
 
-		return data;
-	} catch (err) {
-		if (err.name === "AbortError") {
-			showToast("Request timeout");
-		} else {
-			showToast(err.message);
+		if (!res.ok || data.error) {
+			throw new Error(data.error || "Failed to fetch data");
 		}
+
+		// ipapi.co এর ডেটা ফরম্যাট অনুযায়ী ম্যাপিং
+		return {
+			ip: data.ip,
+			country_name: data.country_name,
+			country_code: data.country_code,
+			city: data.city,
+			region: data.region,
+			latitude: data.latitude,
+			longitude: data.longitude,
+			timezone: data.timezone,
+			org: data.org,
+			asn: data.asn,
+			network: data.network,
+			version: data.version, // IPv4 or IPv6
+		};
+	} catch (err) {
+		showToast(err.message);
 		throw err;
 	} finally {
 		setLoading(false);
 	}
 }
 
-// ================= UI ACTION =================
+// ================= LOOKUP ACTION =================
 async function lookupIP() {
 	const input = document.getElementById("ipInput");
-	if (!input) return;
-
 	const ip = input.value.trim();
 
-	if (!isValidIP(ip)) {
+	if (!ip) return trackMyIP();
+
+	// ✅ IPv4 এবং IPv6 উভয়ই সাপোর্ট করার জন্য Regex
+	const isValidIP =
+		/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(ip) || // IPv4
+		/^(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}$/.test(ip) || // IPv6 Full
+		/^[a-fA-F0-9:]+:+[a-fA-F0-9:]+$/.test(ip); // IPv6 Compressed
+
+	if (!isValidIP) {
 		showToast("Invalid IP format");
 		return;
 	}
@@ -1809,47 +1823,25 @@ async function lookupIP() {
 	}
 }
 
-async function trackMyIP() {
-	try {
-		const data = await fetchWithFallback();
-		updateUI(data);
-		updateMap(data.latitude, data.longitude, data.city);
-		addToLog(data);
-	} catch (e) {
-		console.error("Auto IP detection failed:", e);
-	}
-}
-
+// ================= UI UPDATES =================
 function updateUI(d) {
-	const setText = (id, value) => {
-		const el = document.getElementById(id);
-		if (el) el.textContent = value || "-";
-	};
-
-	setText("currentIP", d.ip);
-	setText(
-		"country",
-		d.country_name ? `${d.country_name} (${d.country_code})` : null
-	);
-	setText("city", d.city);
-	setText("region", d.region);
-	setText(
-		"coords",
-		d.latitude != null && d.longitude != null ?
-			`${d.latitude}, ${d.longitude}`
-		:	null
-	);
-	setText("timezone", d.timezone);
-	setText("isp", d.org);
-	setText("asn", d.asn);
-	setText("route", d.network);
-	setText("networkType", d.version || "IPv4");
-
-	const lastUpdated = document.getElementById("lastUpdated");
-	if (lastUpdated) {
-		lastUpdated.textContent = new Date().toLocaleTimeString();
-	}
+	document.getElementById("currentIP").textContent = d.ip || "-";
+	document.getElementById("country").textContent =
+		d.country_name ? `${d.country_name} (${d.country_code})` : "-";
+	document.getElementById("city").textContent = d.city || "-";
+	document.getElementById("region").textContent = d.region || "-";
+	document.getElementById("coords").textContent =
+		d.latitude && d.longitude ? `${d.latitude}, ${d.longitude}` : "-";
+	document.getElementById("timezone").textContent = d.timezone || "-";
+	document.getElementById("isp").textContent = d.org || "-";
+	document.getElementById("asn").textContent = d.asn || "-";
+	document.getElementById("route").textContent = d.network || "-";
+	document.getElementById("networkType").textContent = d.version || "Unknown";
+	document.getElementById("lastUpdated").textContent =
+		new Date().toLocaleTimeString();
 }
+
+// setLoading এবং showToast ফাংশনগুলো আপনার আগের কোডেই ঠিক আছে।
 
 function setLoading(loading) {
 	const btn = document.getElementById("trackBtn");
